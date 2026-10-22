@@ -1,0 +1,10 @@
+Google Sheet duyệt chủ đề (Topics sheet): https://docs.google.com/spreadsheets/d/1pTiPmXL-D00KxnlFgVQYZfHK4jpiqX1tVnbwb8YOwms/edit?usp=sharing
+
+Chủ đề lần này là never-ending learning, khuyến nghị các nhóm chọn những bài báo về chủ đề này nhưng có phương pháp dựa trên những mô hình học máy đã học trên lớp lý thuyết. Chủ đề này gồm một số hướng chính được bao gồm:
+
+Continual learning: task adaptation, task generalizability, grateful forgetting, task-free continual learning, .etc
+Online learning: learning on data streams, regret minimization, memory-based systems, concept drift, .etc
+Lifelong learning: curriculum learning, persistent learning, self-reflection systems, .etc
+Bài báo được chọn không được công bố lâu quá 5 năm hoặc 60 tháng.
+
+link đề bài: https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/ 
