@@ -8,3 +8,10 @@ Lifelong learning: curriculum learning, persistent learning, self-reflection sys
 Bài báo được chọn không được công bố lâu quá 5 năm hoặc 60 tháng.
 
 link đề bài: https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/ 
+
+đọc thêm tab https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/selection/
+https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/reading/
+https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/reproduction/
+https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/analysis/
+https://hcmus-cs-ta.github.io/lab-book/intro-ml/project/statement/empirics/
+
