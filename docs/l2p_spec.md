@@ -90,6 +90,14 @@ Mỗi điểm dưới đây vừa là nguồn sai lệch khi tái lập, vừa c
 8. **Loss có trừ hay cộng** số hạng matching (cosine similarity với cosine distance)?
 9. **Batch 128 với T4 16GB:** khi dùng fp16 có thể vừa; nếu không thì dùng grad accumulation và ghi rõ trong deck.
 
+## 6b. Deviation log — chỗ nhóm cố ý làm khác paper
+
+Theo ROADMAP §4 quy tắc 7: bản `faithful` giữ đúng paper, bản `improved` bật bằng config flag. Mỗi thay đổi một dòng, ghi ngay khi quyết định, không để dồn.
+
+| # | Thành phần | Paper làm | Vấn đề nhóm thấy (lý thuyết hoặc số liệu) | Nhóm thay bằng | Config flag | Run so sánh (W&B) | Người đề xuất / review |
+|---|---|---|---|---|---|---|---|
+| D1 | | | | | | | |
+
 ## 7. Độ phức tạp (cho slide phương pháp + critique)
 
 - **Train:** mỗi sample cần 1 forward không grad (query) + 1 forward/backward với độ dài L + N·Lp = 197 + 25 = 222 token. Attention có chi phí O((L+N·Lp)²·D) cho mỗi layer.

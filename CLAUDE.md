@@ -9,6 +9,7 @@
 - **Core của L2P phải tự cài đặt từ mô tả trong paper.** Code gốc (`google-research/l2p`, các bản PyTorch cộng đồng) chỉ được đọc/chạy để đối chiếu, **không copy** vào repo. Được dùng thư viện phụ (timm, torchvision, datasets), nhưng phải ghi trong README.
 - Không chép text/hình của paper vào deck/poster.
 - Mọi số liệu báo cáo phải gắn với một W&B run public. Seed cố định và được log.
+- **Không mù quáng theo paper.** Thấy paper sai hoặc làm được tốt hơn thì cứ sửa/thay, nhưng giữ bản `faithful` (đúng paper, dùng cho headline R1–R3) và bản `improved` (bật bằng config flag, run riêng). Mọi thay đổi ghi vào `docs/l2p_spec.md` §6b. Khi viết code, chủ động chỉ ra chỗ paper có vấn đề và đề xuất cách thay.
 
 ## Môi trường
 - **Deadline (Moodle):** link repo public T7 07/11/2026 23:59 · deck `ID.pptx` T7 21/11 23:59 · poster `ID.pptx` T7 05/12 23:59 (ID = số nhóm trên sheet lập nhóm). Freeze nội bộ vào thứ Năm trước mỗi hạn.

@@ -49,20 +49,20 @@ Mỗi người viết speaker notes **cùng lúc** với slide của mình, khô
 
 ## 3. Chia việc: lát dọc + review chéo
 
-Nguyên tắc: **mỗi người sở hữu trọn một chuỗi** lý thuyết → code → thí nghiệm → slide → panel poster. Đồng thời, mỗi người review và viết test cho module của một người khác, nên **mọi module đều có 2 người hiểu**.
+Nguyên tắc: **mỗi người sở hữu trọn một chuỗi** lý thuyết → code → thí nghiệm → slide → panel poster. Đồng thời, mỗi người review module của một người, và viết test cho module của **người còn lại** (hai vòng lệch nhau), nên **mọi module được 3 người chạm tới**: người làm (hiểu sâu nhất), người review (giải thích lại bằng lời), người viết test (phải tự tính ra input/output đúng — không viết được test đúng thì không hiểu được công thức).
 
 | | **A — Method** | **B — Data & Protocol** | **C — Training & Experiments** |
 |---|---|---|---|
 | Module core tự viết | Prompt pool, key–query top-N, surrogate loss, diversified selection | Split theo task, class order theo seed, Gaussian schedule, metric Avg Acc / Forgetting, feature cache | Train/eval loop theo task, head + class mask, AMP, W&B logging, config |
 | Review chéo (phải giải thích lại được) | module của C | module của A | module của B |
-| Viết unit test cho module **của người khác** | metric (của B) | selection (của A) | loop trên toy data (của C) |
+| Viết unit test cho module **của người khác** | metric (của B) | loop trên toy data (của C) | selection + surrogate loss (của A) |
 | Thí nghiệm tái lập | R2 ablation, R4 sweep | R3 Gaussian | R1 headline + phân tích sai lệch |
 | Phần deck | Phương pháp (pool, query, loss), độ phức tạp | Dataset, metric, protocol, bảng R3, bảng ánh xạ W&B | Bối cảnh, đóng góp, kết quả R1, sai lệch |
 | Hạn chế sở hữu | **L3/L4** prompt collapse, drift (E4, E5) | **L2** thông tin task ngầm (E3, E7) | **L1** phụ thuộc pretrain (E1, E2) |
-| Việc phụ | E6 chi phí | Quản lý quota; file `ID.pptx` đúng quy định; README | Thiết kế poster |
+| Việc phụ | E6 chi phí; thiết kế poster | Quản lý quota; file `ID.pptx` đúng quy định; README | — |
 | Tài khoản Kaggle | của A | của B | của C |
 
-- **Gán người thật:** người code mạnh nhất → A (phần khó nhất về code); người viết/lý thuyết tốt → C (bối cảnh, headline, poster); người cẩn thận, có tổ chức → B (protocol, metric, README, quota). Điền tên vào đây: A = `____`, B = `____`, C = `____`.
+- **Gán người thật:** người code mạnh nhất → A (phần khó nhất về code); người viết/lý thuyết tốt → C (bối cảnh, headline, poster); người cẩn thận, có tổ chức → B (protocol, metric, README, quota). Điền tên vào đây: A = `____`, B = `____`, C = `Trần Trọng Tú`.
 - Poster chỉ chứa **2 trong 3** hạn chế (chọn vào CN 29/11 dựa trên kết quả); hạn chế còn lại đưa vào README kèm bằng chứng. Cả 3 lát đều được tính là công sức.
 - Tải việc đã được cân bằng: A nặng ở code Tuần 1–2, C nặng ở run Tuần 3–4, B nặng ở hạ tầng Tuần 1–2 và giấy tờ Tuần 4/6.
 
@@ -74,6 +74,12 @@ Nguyên tắc: **mỗi người sở hữu trọn một chuỗi** lý thuyết �
 4. Seed cố định và được log; config của mọi run được lưu lên W&B.
 5. Commit thường xuyên qua PR — lịch sử commit là bằng chứng tiến độ.
 6. **Mỗi người chỉ dùng tài khoản Kaggle của chính mình** (điều khoản Kaggle cấm tài khoản phụ).
+7. **Không mù quáng theo paper.** Chỗ nào paper sai, mơ hồ hoặc làm được tốt hơn thì cứ sửa hoặc thay. Nhưng phải giữ cả hai bản:
+   - **`faithful`**: đúng như paper mô tả. Mặc định cho R1–R3 vì đề yêu cầu so số với paper; nếu headline đã đổi cách làm thì không còn so được nữa.
+   - **`improved`**: bản sửa, bật bằng một flag trong config (vd. `selection.diverse_init: kmeans`) và chạy thành run riêng trên W&B.
+   - Mỗi thay đổi ghi một dòng vào `docs/l2p_spec.md` §6b (Deviation log): paper làm gì, nhóm thấy sai/kém ở đâu, thay bằng gì, run nào chứng minh.
+   - Thay đổi nào có lý do lý thuyết rõ ràng thì đưa vào poster (hạn chế + hướng phát triển đã kiểm chứng). Đó là phần ăn điểm nhất của Analysis/Empirics.
+   - Ngoại lệ: lỗi khách quan (bug số học, công thức tự mâu thuẫn) thì sửa thẳng ở cả hai bản, ghi vào log và nói rõ trong deck.
 
 ## 5. Ngân sách compute: 3 tài khoản × 30h/tuần
 
@@ -144,3 +150,7 @@ Không ai đảm bảo được 10 điểm: điểm do giám khảo chấm, và 
 3. **Definition of Done của một PR:** code chạy + có test + reviewer giải thích lại được bằng lời ở buổi họp gần nhất.
 4. **`docs/viva_questions.md`:** mỗi người thêm ≥3 câu hỏi/tuần và tự trả lời. Sau 05/12 dùng bộ câu này để tổng duyệt.
 5. **Rotation Tuần 5:** mỗi người chạy lại một run của người khác chỉ dựa vào README. Nếu không chạy được thì README chưa đạt.
+6. **Ranh giới dùng AI (Claude Code) khi viết core.** Mỗi lát dọc có một phần "core logic" (A: Eq. 3/4/5 chọn prompt + surrogate loss; B: Gaussian schedule, metric Forgetting; C: logic log "instrument once"). Với đúng phần đó:
+   - **Không** nhờ AI sinh code từ đặc tả paper — tự viết pseudocode từ derivation giấy, tự code bản đầu, rồi mới dùng AI để review/tìm bug/viết test.
+   - **Được** dùng AI tự do cho phần còn lại: boilerplate, config loading, tra cú pháp thư viện.
+   - Litmus test: xoá code, tự viết lại được từ derivation trên giấy không? Không được → vibe-code, làm lại từ bước pseudocode.
