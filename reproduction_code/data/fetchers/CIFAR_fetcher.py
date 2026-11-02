@@ -12,7 +12,7 @@ from reproduction_code.data.tasks.task import Task
 class CIFARFetcher(Fetcher):
     NUM_CLASSES: ClassVar[int] = 100
 
-    def __init__(self, num_tasks: int, random_seed: int):
+    def __init__(self, num_tasks: int, random_seed: int) -> None:
         super().__init__()
 
         self.num_tasks = num_tasks

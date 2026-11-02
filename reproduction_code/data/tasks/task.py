@@ -21,6 +21,9 @@ class Task(ABC):
         data: DatasetDict,
         random_seed: int,
     ) -> None:
+        self._assert_required_splits_exist(data)
+        self._assert_required_columns_exist(data)
+
         self.class_ids = class_ids
         self.data = data
         self.random_seed = random_seed
@@ -62,15 +65,20 @@ class Task(ABC):
         raw_Y = raw_batch["Y"]
 
         processed_X = [self._preprocess_data_point(data_point) for data_point in raw_X]
+        processed_Y = [self._preprocess_label(label) for label in raw_Y]
 
         return {
             "X": processed_X,
-            "Y": raw_Y,
+            "Y": processed_Y,
         }
 
     @abstractmethod
     def _preprocess_data_point(self, image: Image) -> Tensor:
         pass
+
+    def _preprocess_label(self, label: int) -> int:
+        # Overwritten in 5-datasets
+        return label
 
     def _assert_required_splits_exist(self, data: DatasetDict) -> None:
         for split_name in self.REQUIRED_SPLITS:
@@ -81,6 +89,4 @@ class Task(ABC):
             split_columns = data[split_name].column_names
 
             for column_name in self.REQUIRED_COLUMNS:
-                assert column_name in split_columns, (
-                    f"Missing column '{column_name}' in split '{split_name}'"
-                )
+                assert column_name in split_columns
