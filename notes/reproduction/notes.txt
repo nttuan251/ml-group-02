@@ -1,0 +1,3 @@
+- Interpolation mode whn resizing is ambiguous.
+- Whether labels inside a task are renumbered.
+- Logit masking according to current task's classes.
