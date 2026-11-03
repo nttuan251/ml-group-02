@@ -3,6 +3,7 @@ from typing import Any
 
 import torch
 from datasets import Dataset as HFDataset
+from torch import Generator
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
 
@@ -29,8 +30,11 @@ class BatchIterator:
         random_seed: int,
         num_workers: int = 4,
     ) -> None:
-        torch.manual_seed(random_seed)
+        assert num_workers > 0
 
+        generator = Generator().manual_seed(random_seed)
+
+        # Shuffling orders start at the same point with the same random seed
         self.data_loader = DataLoader(
             dataset=dataset,
             batch_size=batch_size,
@@ -38,6 +42,7 @@ class BatchIterator:
             num_workers=num_workers,
             pin_memory=True,
             collate_fn=self._collate_fn,
+            generator=generator,
         )
 
     @staticmethod

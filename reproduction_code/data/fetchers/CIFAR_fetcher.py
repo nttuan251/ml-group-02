@@ -1,7 +1,8 @@
 import random
 from typing import ClassVar
 
-from datasets import DatasetDict, load_dataset
+import numpy as np
+from datasets import Dataset, DatasetDict, NamedSplit, load_dataset
 
 from reproduction_code.data.core.data_package import DataPackage
 from reproduction_code.data.fetchers.fetcher import Fetcher
@@ -73,23 +74,16 @@ class CIFARFetcher(Fetcher):
     def _filter_data_by_class_ids(
         self, data: DatasetDict, class_ids: list[int]
     ) -> DatasetDict:
-        class_ids_set = set(class_ids)
+        filtered_data: dict[str | NamedSplit, Dataset] = {}
 
-        filtered_train_split = data["train"].filter(
-            lambda data_point: data_point["Y"] in class_ids_set
-        )
-        filtered_test_split = data["test"].filter(
-            lambda data_point: data_point["Y"] in class_ids_set
-        )
+        for split_name, dataset in data.items():
+            labels = np.asarray(dataset["Y"])
+            selected_instances_bool = np.isin(labels, class_ids)
+            selected_instances_indices = np.flatnonzero(selected_instances_bool)
 
-        filtered_data = DatasetDict(
-            {
-                "train": filtered_train_split,
-                "test": filtered_test_split,
-            }
-        )
+            filtered_data[split_name] = dataset.select(selected_instances_indices)
 
-        return filtered_data
+        return DatasetDict(filtered_data)
 
     def _build_task_from_data(self, data: DatasetDict, class_ids: list[int]) -> Task:
         return CIFARTask(

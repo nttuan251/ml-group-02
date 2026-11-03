@@ -1,19 +1,24 @@
-from abc import ABC, abstractmethod
 from typing import Any, ClassVar
 
 from datasets import Dataset, DatasetDict
 from PIL.Image import Image
 from torch import Tensor
+from torchvision.transforms import Compose, InterpolationMode, Resize, ToTensor
 
 from reproduction_code.data.core.batch_iterator import (
     BatchIterator,
     TorchDatasetAdapter,
 )
+from reproduction_code.data.tasks.util.convert_channels import ConvertChannels
 
 
-class Task(ABC):
+class Task:
     REQUIRED_SPLITS: ClassVar[tuple[str, ...]] = ("train", "test")
     REQUIRED_COLUMNS: ClassVar[tuple[str, ...]] = ("X", "Y")
+
+    IMAGE_SHAPE: ClassVar[tuple[int, int]] = (224, 224)
+    # NOTE: Paper did not specify which interpolation mode to use
+    RESIZE_INTERPOLATION_MODE: ClassVar[InterpolationMode] = InterpolationMode.BILINEAR
 
     def __init__(
         self,
@@ -27,6 +32,8 @@ class Task(ABC):
         self.class_ids = class_ids
         self.data = data
         self.random_seed = random_seed
+
+        self.transform = self._create_data_point_transform_pipeline()
 
     def get_class_ids(self) -> list[int]:
         return self.class_ids
@@ -72,12 +79,13 @@ class Task(ABC):
             "Y": processed_Y,
         }
 
-    @abstractmethod
-    def _preprocess_data_point(self, image: Image) -> Tensor:
-        pass
+    def _preprocess_data_point(self, data_point: Image) -> Tensor:
+        transformed_data_point = self.transform(data_point)
+        assert isinstance(transformed_data_point, Tensor)
+
+        return transformed_data_point
 
     def _preprocess_label(self, label: int) -> int:
-        # Overwritten in 5-datasets
         return label
 
     def _assert_required_splits_exist(self, data: DatasetDict) -> None:
@@ -90,3 +98,14 @@ class Task(ABC):
 
             for column_name in self.REQUIRED_COLUMNS:
                 assert column_name in split_columns
+
+    def _create_data_point_transform_pipeline(self) -> Compose:
+        pipeline = Compose(
+            [
+                ConvertChannels("RGB"),
+                Resize(self.IMAGE_SHAPE, interpolation=self.RESIZE_INTERPOLATION_MODE),
+                ToTensor(),
+            ]
+        )
+
+        return pipeline

@@ -1,5 +1,6 @@
 from typing import Any, ClassVar
 
+import numpy as np
 from datasets import Dataset, DatasetDict, load_dataset
 
 from reproduction_code.data.core.data_package import DataPackage
@@ -43,12 +44,18 @@ class CORe50Fetcher(Fetcher):
         return data.rename_columns({"image": "X", "label": "Y"})
 
     def _extract_test_dataset(self, dataset: Dataset) -> Dataset:
-        return dataset.filter(
-            lambda data_point: data_point["session"] in self.TEST_SESSIONS
-        )
+        sessions = np.asarray(dataset["session"])
+        selected_instances_bool = np.isin(sessions, self.TEST_SESSIONS)
+        selected_instances_indices = np.flatnonzero(selected_instances_bool)
+
+        return dataset.select(selected_instances_indices)
 
     def _filter_data_by_session_id(self, dataset: Dataset, session_id: int) -> Dataset:
-        return dataset.filter(lambda data_point: data_point["session"] == session_id)
+        sessions = np.asarray(dataset["session"])
+        selected_instances_bool = sessions == session_id
+        selected_instances_indices = np.flatnonzero(selected_instances_bool)
+
+        return dataset.select(selected_instances_indices)
 
     def _build_task_from_data(self, data: DatasetDict) -> Task:
         class_ids = list(range(self.NUM_CLASSES))

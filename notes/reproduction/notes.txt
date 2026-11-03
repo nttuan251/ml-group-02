@@ -3,3 +3,4 @@
 - Logit masking according to current task's classes.
 - adrake17/core50 (public HF dataset for CORe50) doesn't have the necessary session column. Manual upload required. 
 - In task-agnostic training and testing, standard deviation in sampling the data, class ordering, time scale (quite irrelevant in the big picture), distribution truncation are all ambiguous from the paper alone.
+- Task order for 5-datasets is ambiguous.
