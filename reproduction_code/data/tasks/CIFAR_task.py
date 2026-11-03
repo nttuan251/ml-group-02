@@ -8,7 +8,7 @@ from torchvision.transforms.functional import to_tensor
 from reproduction_code.data.tasks.task import Task
 
 
-class CIFAR_task(Task):
+class CIFARTask(Task):
     IMAGE_SHAPE: ClassVar[tuple[int, int]] = (224, 224)
 
     # NOTE: Paper did not specify which interpolation mode to use

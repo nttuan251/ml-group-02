@@ -5,7 +5,7 @@ from datasets import DatasetDict, load_dataset
 
 from reproduction_code.data.core.data_package import DataPackage
 from reproduction_code.data.fetchers.fetcher import Fetcher
-from reproduction_code.data.tasks.CIFAR_task import CIFAR_task
+from reproduction_code.data.tasks.CIFAR_task import CIFARTask
 from reproduction_code.data.tasks.task import Task
 
 
@@ -25,11 +25,11 @@ class CIFARFetcher(Fetcher):
 
         tasks = []
 
-        data_with_normalized_columns = self._normalize_columns(data)
+        normalized_data = self._normalize_columns(data)
 
         for class_ids in task_segmented_class_ids:
             filtered_task_data = self._filter_data_by_class_ids(
-                data_with_normalized_columns, class_ids
+                normalized_data, class_ids
             )
 
             task = self._build_task_from_data(filtered_task_data, class_ids)
@@ -92,7 +92,7 @@ class CIFARFetcher(Fetcher):
         return filtered_data
 
     def _build_task_from_data(self, data: DatasetDict, class_ids: list[int]) -> Task:
-        return CIFAR_task(
+        return CIFARTask(
             class_ids=class_ids,
             data=data,
             random_seed=self.random_seed,

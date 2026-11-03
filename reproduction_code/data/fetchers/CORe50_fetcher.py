@@ -19,7 +19,6 @@ class CORe50Fetcher(Fetcher):
     def _preprocess(self, data: Any) -> DataPackage:
         normalized_data = self._normalize_columns(data)
         full_dataset = normalized_data["train"]  # HF dataset only has 1 split
-        class_ids = list(range(self.NUM_CLASSES))
 
         test_dataset = self._extract_test_dataset(full_dataset)
 
@@ -35,7 +34,7 @@ class CORe50Fetcher(Fetcher):
                 }
             )
 
-            task = self._build_task_from_data(dataset_dict, class_ids)
+            task = self._build_task_from_data(dataset_dict)
             tasks.append(task)
 
         return self._build_package_from_tasks(tasks)
@@ -51,7 +50,9 @@ class CORe50Fetcher(Fetcher):
     def _filter_data_by_session_id(self, dataset: Dataset, session_id: int) -> Dataset:
         return dataset.filter(lambda data_point: data_point["session"] == session_id)
 
-    def _build_task_from_data(self, data: DatasetDict, class_ids: list[int]) -> Task:
+    def _build_task_from_data(self, data: DatasetDict) -> Task:
+        class_ids = list(range(self.NUM_CLASSES))
+
         return CORe50Task(
             class_ids=class_ids,
             data=data,
