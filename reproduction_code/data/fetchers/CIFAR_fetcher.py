@@ -11,12 +11,7 @@ from reproduction_code.data.tasks.task import Task
 
 class CIFARFetcher(Fetcher):
     NUM_CLASSES: ClassVar[int] = 100
-
-    def __init__(self, num_tasks: int, random_seed: int) -> None:
-        super().__init__()
-
-        self.num_tasks = num_tasks
-        self.random_seed = random_seed
+    NUM_TASKS: ClassVar[int] = 10
 
     def _fetch_data(self) -> DatasetDict:
         dataset = load_dataset("uoft-cs/cifar100")
@@ -57,10 +52,10 @@ class CIFARFetcher(Fetcher):
     def _perform_class_ids_segmentation_by_task(
         self, shuffled_class_ids: list[int]
     ) -> list[list[int]]:
-        classes_per_task = self.NUM_CLASSES // self.num_tasks
+        classes_per_task = self.NUM_CLASSES // self.NUM_TASKS
         segmented_class_ids = []
 
-        for task_index in range(self.num_tasks):
+        for task_index in range(self.NUM_TASKS):
             start_index = task_index * classes_per_task
             end_index = start_index + classes_per_task
 

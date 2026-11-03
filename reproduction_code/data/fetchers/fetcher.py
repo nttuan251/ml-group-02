@@ -5,6 +5,9 @@ from reproduction_code.data.core.data_package import DataPackage
 
 
 class Fetcher(ABC):
+    def __init__(self, random_seed: int) -> None:
+        self.random_seed = random_seed
+
     def get_data(self) -> DataPackage:
         data = self._fetch_data()
         preprocessed_data = self._preprocess(data)

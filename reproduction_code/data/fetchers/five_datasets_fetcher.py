@@ -12,10 +12,6 @@ class FiveDatasetsFetcher(Fetcher):
     NUM_CLASSES_PER_TASK: ClassVar[int] = 10
     NUM_TASKS: ClassVar[int] = 5
 
-    def __init__(self, random_seed: int) -> None:
-        super().__init__()
-        self.random_seed = random_seed
-
     def _fetch_data(self) -> dict[str, DatasetDict]:
         return {
             "cifar10": load_dataset("uoft-cs/cifar10"),
