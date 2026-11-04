@@ -7,3 +7,4 @@
 - Prompt tokens do not receive positional encoding, only the base tokens do. The paper doesn't clarify this.
 - Only prompt tokens get used to classify, no CLS token, which should follows the paper but still needs verifying.
 - Handling of 0's when using frequency table is ambiguous.
+- Prompts that do not get used still get updated slightly after each batch due to not being sparse. This is necessary to use standard Adam.

@@ -24,15 +24,13 @@ class PromptPool(nn.Module):
         self.top_n = top_n
         self.use_frequency_penalty = use_frequency_penalty
 
-        self.prompts = nn.Embedding(
-            pool_size,
-            prompt_length * embed_dimension,
-            sparse=True,
+        self.prompts = nn.Parameter(
+            torch.empty(pool_size, prompt_length, embed_dimension)
         )
-        self.keys = nn.Embedding(pool_size, key_dimension, sparse=True)
+        self.keys = nn.Parameter(torch.empty(pool_size, key_dimension))
 
-        nn.init.uniform_(self.prompts.weight, -1.0, 1.0)
-        nn.init.uniform_(self.keys.weight, -1.0, 1.0)
+        nn.init.uniform_(self.prompts, -1.0, 1.0)
+        nn.init.uniform_(self.keys, -1.0, 1.0)
 
         self.has_frequency_history = False
 
@@ -44,9 +42,7 @@ class PromptPool(nn.Module):
 
     def forward(self, queries: Tensor) -> tuple[Tensor, Tensor]:
         with torch.no_grad():
-            similarity_matrix = self._calculate_cosine_similarity(
-                queries, self.keys.weight
-            )
+            similarity_matrix = self._calculate_cosine_similarity(queries, self.keys)
 
             selected_prompt_indices = self._get_top_n_prompt_indices(similarity_matrix)
 
@@ -99,7 +95,7 @@ class PromptPool(nn.Module):
         return selected_indices
 
     def _extract_prompts(self, selected_indices: Tensor) -> Tensor:
-        selected_prompts: Tensor = self.prompts(selected_indices)
+        selected_prompts = self.prompts[selected_indices]
         batch_size = selected_indices.shape[0]
 
         return selected_prompts.view(batch_size, -1, self.embed_dimension)
@@ -107,7 +103,7 @@ class PromptPool(nn.Module):
     def _calculate_surrogate_loss(
         self, queries: Tensor, selected_indices: Tensor
     ) -> Tensor:
-        selected_keys: Tensor = self.keys(selected_indices)
+        selected_keys = self.keys[selected_indices]
 
         queries_expanded = queries.unsqueeze(1)
 
