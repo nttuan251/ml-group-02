@@ -4,3 +4,6 @@
 - adrake17/core50 (public HF dataset for CORe50) doesn't have the necessary session column. Manual upload required. 
 - In task-agnostic training and testing, standard deviation in sampling the data, class ordering, time scale (quite irrelevant in the big picture), distribution truncation are all ambiguous from the paper alone.
 - Task order for 5-datasets is ambiguous.
+- Prompt tokens do not receive positional encoding, only the base tokens do. The paper doesn't clarify this.
+- Only prompt tokens get used to classify, no CLS token, which should follows the paper but still needs verifying.
+- Handling of 0's when using frequency table is ambiguous.
