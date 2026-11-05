@@ -40,14 +40,16 @@ class PromptPool(nn.Module):
                 "prompt_normalized_frequencies_task", torch.zeros(pool_size)
             )
 
-    def forward(self, queries: Tensor) -> tuple[Tensor, Tensor]:
+    def select_prompts_and_calculate_loss_from_queries(
+        self, queries: Tensor
+    ) -> tuple[Tensor, Tensor]:
         with torch.no_grad():
             similarity_matrix = self._calculate_cosine_similarity(queries, self.keys)
 
             selected_prompt_indices = self._get_top_n_prompt_indices(similarity_matrix)
 
             if self.training and self.use_frequency_penalty:
-                self._update_frequency_batch(selected_prompt_indices)
+                self._update_frequency_after_batch(selected_prompt_indices)
 
         prompt_tokens = self._extract_prompts(selected_prompt_indices)
         surrogate_loss = self._calculate_surrogate_loss(
@@ -56,7 +58,7 @@ class PromptPool(nn.Module):
 
         return prompt_tokens, surrogate_loss
 
-    def update_frequency_task(self) -> None:
+    def update_frequency_after_task(self) -> None:
         if not self.use_frequency_penalty:
             raise Exception(
                 "Prompt frequency update called when training configured to not use frequency penalty."
@@ -115,7 +117,7 @@ class PromptPool(nn.Module):
 
         return cosine_distances.sum(dim=1).mean()
 
-    def _update_frequency_batch(self, selected_indices: Tensor) -> None:
+    def _update_frequency_after_batch(self, selected_indices: Tensor) -> None:
         flattened_indices = selected_indices.flatten()
         index_counts = torch.bincount(flattened_indices, minlength=self.pool_size)
 

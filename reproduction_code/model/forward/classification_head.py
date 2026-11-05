@@ -1,7 +1,7 @@
 from torch import Tensor, nn
 
 
-class PromptTokenClassifier(nn.Module):
+class ClassificationHead(nn.Module):
     def __init__(
         self,
         embed_dimension: int,
@@ -14,7 +14,9 @@ class PromptTokenClassifier(nn.Module):
         self.num_prompt_tokens = prompt_length * top_n
         self.classifier = nn.Linear(embed_dimension, num_classes)
 
-    def forward(self, transformer_output: Tensor) -> Tensor:
+    def extract_transformed_prompt_tokens_and_classify(
+        self, transformer_output: Tensor
+    ) -> Tensor:
         prompt_tokens = self._extract_prompt_tokens(transformer_output)
         averaged_features = self._average_tokens(prompt_tokens)
         logits = self._classify_features(averaged_features)

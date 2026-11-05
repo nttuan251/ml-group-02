@@ -19,7 +19,7 @@ class ViTFeatureExtractor(nn.Module):
         for param in self.vit.parameters():
             param.requires_grad = False
 
-    def extract_cls_feature(self, X: Tensor) -> Tensor:
+    def pass_through_model_and_extract_cls_tokens(self, X: Tensor) -> Tensor:
         with torch.no_grad():
             input_tokens = self.embed_and_build_input_tokens(X)
             output_tokens = self.transform_and_normalize_tokens(input_tokens)
@@ -38,6 +38,12 @@ class ViTFeatureExtractor(nn.Module):
         output_tokens = self._normalize_tokens(transformed_tokens)
 
         return output_tokens
+
+    def train(self, mode: bool = True) -> "ViTFeatureExtractor":
+        super().train(mode)
+        self.vit.eval()
+
+        return self
 
     def _get_patch_tokens(self, X: Tensor) -> Tensor:
         return self.vit.patch_embed(X)
