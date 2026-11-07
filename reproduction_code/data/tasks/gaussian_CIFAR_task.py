@@ -22,4 +22,4 @@ class GaussianCIFARTask(CIFARTask):
 
         dataset_with_transformer = self._apply_lazy_transformation(raw_train_dataset)
 
-        return self._make_batches(dataset_with_transformer, batch_size, False)
+        return self._build_batch_iterator(dataset_with_transformer, batch_size, False)

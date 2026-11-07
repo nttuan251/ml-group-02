@@ -1,10 +1,13 @@
 from typing import Any, ClassVar
 
+import numpy as np
+import torch
 from datasets import Dataset, DatasetDict
 from PIL.Image import Image
 from torch import Tensor
 from torchvision.transforms import Compose, InterpolationMode, Resize, ToTensor
 
+from reproduction_code.data.core.batch import Batch
 from reproduction_code.data.core.batch_iterator import (
     BatchIterator,
     TorchDatasetAdapter,
@@ -58,7 +61,7 @@ class Task:
 
         dataset_with_transformer = self._apply_lazy_transformation(raw_train_dataset)
 
-        return self._make_batches(dataset_with_transformer, batch_size, True)
+        return self._build_batch_iterator(dataset_with_transformer, batch_size, True)
 
     def get_test_batches(self, batch_size: int) -> BatchIterator:
         """
@@ -74,9 +77,37 @@ class Task:
 
         dataset_with_transformer = self._apply_lazy_transformation(raw_test_dataset)
 
-        return self._make_batches(dataset_with_transformer, batch_size, False)
+        return self._build_batch_iterator(dataset_with_transformer, batch_size, False)
 
-    def _make_batches(
+    def get_n_samples_per_class(self, samples_per_class: int) -> Batch:
+        """
+        Yields a fixed number of samples per class from the data and packages them into a batch before returning (preprocessing included).
+
+        Args:
+            samples_per_class (int): Number of samples per class.
+
+        Returns:
+            Batch: Packaged preprocessed samples.
+        """
+        train_dataset = self.data["train"]
+
+        labels = np.asarray(train_dataset["Y"])
+        selected_indices = self._sample_indices_of_every_class(
+            labels, samples_per_class
+        )
+        raw_samples: dict[str, list[Any]] = train_dataset.select(selected_indices)[:]
+
+        return self._build_batch(raw_samples)
+
+    def _build_batch(self, raw_samples: dict[str, list[Any]]) -> Batch:
+        transformed = self._apply_transform_to_batch(raw_samples)
+
+        X = torch.stack(transformed["X"])
+        Y = torch.tensor(transformed["Y"], dtype=torch.long)
+
+        return Batch(X, Y)
+
+    def _build_batch_iterator(
         self, formatted_dataset: Dataset, batch_size: int, shuffle: bool
     ) -> BatchIterator:
         return BatchIterator(
@@ -85,6 +116,36 @@ class Task:
             shuffle=shuffle,
             random_seed=self.random_seed,
         )
+
+    def _sample_indices_of_every_class(
+        self, labels_column: np.ndarray, samples_per_class: int
+    ) -> list[int]:
+        rng = np.random.default_rng(self.random_seed)
+
+        selected_indices: list[int] = []
+        for class_id in self.class_ids:
+            selected_indices.extend(
+                self._sample_indices_of_class(
+                    labels_column,
+                    class_id,
+                    samples_per_class,
+                    rng,
+                )
+            )
+
+        return selected_indices
+
+    def _sample_indices_of_class(
+        self,
+        labels_column: np.ndarray,
+        class_id: int,
+        samples_per_class: int,
+        rng: np.random.Generator,
+    ) -> list[int]:
+        class_indices = np.flatnonzero(labels_column == class_id)
+        assert len(class_indices) >= samples_per_class
+
+        return rng.choice(class_indices, size=samples_per_class, replace=False).tolist()
 
     def _apply_lazy_transformation(self, dataset: Dataset) -> Dataset:
         """

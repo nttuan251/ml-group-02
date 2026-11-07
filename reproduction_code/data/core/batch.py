@@ -6,7 +6,7 @@ from torch import Tensor, device
 
 class Batch:
     """
-    A batch of data (label included). Batches are packaged and accessed via a BatchIterator object.
+    A batch of data (label included).
     """
 
     IMAGE_SHAPE: ClassVar[tuple[int, int, int]] = (3, 224, 224)
@@ -39,6 +39,28 @@ class Batch:
 
     def get_Y(self) -> Tensor:
         return self.Y
+
+    def merge(self, other: "Batch") -> "Batch":
+        """
+        Merges the current instance with another Batch instance after moving it to the same device as the current.
+
+        Args:
+            other (Batch): Other Batch instance.
+
+        Returns:
+            Batch: Merged Batch instance.
+        """
+
+        other_X = other.get_X().to(self.X.device)
+        other_Y = other.get_Y().to(self.Y.device)
+
+        merged_X = torch.cat((self.X, other_X), dim=0)
+        merged_Y = torch.cat((self.Y, other_Y), dim=0)
+
+        return Batch(
+            X=merged_X,
+            Y=merged_Y,
+        )
 
     def _assert_valid_X(self, X: Tensor) -> None:
         assert X.ndim == 4

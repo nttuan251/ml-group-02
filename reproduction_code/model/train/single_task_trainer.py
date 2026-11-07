@@ -7,6 +7,7 @@ from reproduction_code.data.core.batch_iterator import BatchIterator
 from reproduction_code.data.tasks.task import Task
 from reproduction_code.model.forward.L2P_model import L2PModel
 from reproduction_code.model.train.optimizer_factory import OptimizerFactory
+from reproduction_code.model.train.rehearsal_buffer import RehearsalBuffer
 
 
 class SingleTaskTrainer:
@@ -22,6 +23,7 @@ class SingleTaskTrainer:
         batch_size: int,
         device: device | str,
         lambda_surrogate: float,
+        rehearsal_buffer: RehearsalBuffer | None,
     ) -> None:
         self.model = model
         self.optimizer_factory = optimizer_factory
@@ -29,6 +31,7 @@ class SingleTaskTrainer:
         self.batch_size = batch_size
         self.device = device
         self.lambda_surrogate = lambda_surrogate
+        self.rehearsal_buffer = rehearsal_buffer
 
     def train_on_task(self, task: Task, total_num_classes: int) -> list[float]:
         """
@@ -46,8 +49,8 @@ class SingleTaskTrainer:
         # Optimizer created anew. Adam's internal state is reset between tasks
         optimizer = self.optimizer_factory.create_optimizer(self.model)
 
-        current_task_class_ids = task.get_class_ids()
-        class_mask = self._build_class_mask(current_task_class_ids, total_num_classes)
+        seen_class_ids = self._build_seen_class_ids(task)
+        class_mask = self._build_class_mask(list(seen_class_ids), total_num_classes)
 
         batch_iterator = task.get_train_batches(self.batch_size)
 
@@ -56,6 +59,20 @@ class SingleTaskTrainer:
         )
 
         return epoch_losses
+
+    def _build_seen_class_ids(self, task: Task) -> list[int]:
+        current_task_class_ids = task.get_class_ids()
+
+        if self.rehearsal_buffer:
+            rehearsal_buffer_class_ids: set[int] = (
+                self.rehearsal_buffer.get_recorded_classes()
+            )
+        else:
+            rehearsal_buffer_class_ids: set[int] = set()
+
+        seen_class_ids = rehearsal_buffer_class_ids.union(set(current_task_class_ids))
+
+        return list(seen_class_ids)
 
     def _train_on_all_epochs_and_record_losses(
         self, batch_iterator: BatchIterator, class_mask: Tensor, optimizer: Optimizer
@@ -118,6 +135,8 @@ class SingleTaskTrainer:
         - Calculates cross entropy loss from logits and batch labels.
         - Calculates total loss, then performs backpropagation and updates parameters.
 
+        If rehearsal buffer is used and buffer is not empty, an extra batch of past data is appended to the current batch.
+
         Args:
             batch (Batch): Batch.
             class_mask (Tensor): Current task's class labels mask.
@@ -128,6 +147,10 @@ class SingleTaskTrainer:
         """
         batch.to(self.device)
         self._clear_optimizer_gradients(optimizer)
+
+        if self.rehearsal_buffer and not self.rehearsal_buffer.is_empty():
+            rehearsal_batch = self.rehearsal_buffer.get_random_samples(self.batch_size)
+            batch = batch.merge(rehearsal_batch)
 
         X = batch.get_X()
         Y = batch.get_Y()

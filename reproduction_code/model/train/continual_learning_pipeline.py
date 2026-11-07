@@ -5,6 +5,7 @@ from reproduction_code.model.train.continual_learning_evaluator import (
     ContinualLearningEvaluator,
 )
 from reproduction_code.model.train.metrics_tracker import MetricsTracker
+from reproduction_code.model.train.rehearsal_buffer import RehearsalBuffer
 from reproduction_code.model.train.single_task_trainer import SingleTaskTrainer
 
 
@@ -20,12 +21,14 @@ class ContinualLearningPipeline:
         single_task_trainer: SingleTaskTrainer,
         evaluator: ContinualLearningEvaluator,
         metrics_tracker: MetricsTracker,
+        rehearsal_buffer: RehearsalBuffer | None,
     ) -> None:
         self.model = model
         self.data_package = data_package
         self.single_task_trainer = single_task_trainer
         self.evaluator = evaluator
         self.metrics_tracker = metrics_tracker
+        self.rehearsal_buffer = rehearsal_buffer
 
     def train_on_dataset_for_accuracy_and_forgetting(self) -> tuple[float, float]:
         """
@@ -43,7 +46,7 @@ class ContinualLearningPipeline:
         num_tasks = self.data_package.get_number_of_tasks()
 
         for current_task_index in range(num_tasks):
-            self._train_on_current_task(current_task_index)
+            self._train_on_current_task_and_update_rehearsal(current_task_index)
 
             accuracies_of_all_tasks_up_to_current = (
                 self._calculate_accuracies_on_all_tasks_up_to_index(current_task_index)
@@ -70,11 +73,22 @@ class ContinualLearningPipeline:
 
         return final_average_accuracy, final_average_forgetting
 
-    def _train_on_current_task(self, current_task_index: int) -> None:
+    def _train_on_current_task_and_update_rehearsal(
+        self, current_task_index: int
+    ) -> None:
+        """
+        Trains on current task and updates rehearsal buffer if it is being used.
+
+        Args:
+            current_task_index (int): _description_
+        """
         current_task = self.data_package.get_task(current_task_index)
         num_classes = self.data_package.get_number_of_classes()
 
         self.single_task_trainer.train_on_task(current_task, num_classes)
+
+        if self.rehearsal_buffer:
+            self.rehearsal_buffer.fetch_and_save_samples_from_task(current_task)
 
     def _calculate_accuracies_on_all_tasks_up_to_index(
         self,
