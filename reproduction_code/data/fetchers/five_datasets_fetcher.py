@@ -9,6 +9,11 @@ from reproduction_code.data.tasks.task import Task
 
 
 class FiveDatasetsFetcher(Fetcher):
+    """
+    Fetcher fetching data for the 5-datasets.
+    Information already covered in the docstrings inside the base Fetcher class won't be specified again.
+    """
+
     NUM_CLASSES_PER_TASK: ClassVar[int] = 10
     NUM_TASKS: ClassVar[int] = 5
 
@@ -22,6 +27,15 @@ class FiveDatasetsFetcher(Fetcher):
         }
 
     def _preprocess(self, data: dict[str, DatasetDict]) -> DataPackage:
+        """
+        Preprocesses data by generating distinct class labels for the five datasets. Each dataset corresponds to one task. The current datasets ordering is: CIFAR10, MNIST, Fashion-MNIST, SVHN, notMNIST (this order is arbitrary and was not explicitly stated in the original paper).
+
+        Args:
+            data (dict[str, DatasetDict]): Raw fetched data.
+
+        Returns:
+            DataPackage: Preprocessed data.
+        """
         normalized_data = self._normalize_columns_and_splits(data)
 
         tasks = []
@@ -67,6 +81,15 @@ class FiveDatasetsFetcher(Fetcher):
         return data
 
     def _generate_class_ids(self, offset: int) -> list[int]:
+        """
+        Generates distinct class ids while keeping track of a global offset so that the labels from the different datasets don't overlap.
+
+        Args:
+            offset (int): Global offset.
+
+        Returns:
+            list[int]: Generated class labels.
+        """
         return list(range(offset, offset + self.NUM_CLASSES_PER_TASK))
 
     def _build_task_from_data(

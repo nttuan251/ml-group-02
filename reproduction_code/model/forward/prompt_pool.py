@@ -3,6 +3,10 @@ from torch import Tensor, nn
 
 
 class PromptPool(nn.Module):
+    """
+    Manages a prompt pool and frequency table.
+    """
+
     prompt_frequencies_batch: Tensor
     prompt_normalized_frequencies_task: Tensor
 
@@ -43,6 +47,15 @@ class PromptPool(nn.Module):
     def select_prompts_and_calculate_loss_from_queries(
         self, queries: Tensor
     ) -> tuple[Tensor, Tensor]:
+        """
+        Fetches prompts based on queries (CLS tokens) and calculates surrogate loss in the process.
+
+        Args:
+            queries (Tensor): Queries.
+
+        Returns:
+            tuple[Tensor, Tensor]: Prompt tokens and surrogate loss.
+        """
         with torch.no_grad():
             similarity_matrix = self._calculate_cosine_similarity(queries, self.keys)
 
@@ -59,6 +72,9 @@ class PromptPool(nn.Module):
         return prompt_tokens, surrogate_loss
 
     def update_frequency_after_task(self) -> None:
+        """
+        Updates prompt frequency table at the end of a task. The new updated frequency is then used for future prompt selection.
+        """
         if not self.use_frequency_penalty:
             raise Exception(
                 "Prompt frequency update called when training configured to not use frequency penalty."
@@ -72,6 +88,16 @@ class PromptPool(nn.Module):
             self.has_frequency_history = True
 
     def _calculate_cosine_similarity(self, queries: Tensor, keys: Tensor) -> Tensor:
+        """
+        Calculates a cosine similarity matrix of each query to each prompt key.
+
+        Args:
+            queries (Tensor): Queries.
+            keys (Tensor): Prompt keys.
+
+        Returns:
+            Tensor: Similarity matrix.
+        """
         normalized_queries = nn.functional.normalize(queries, p=2, dim=1)
         normalized_keys = nn.functional.normalize(keys, p=2, dim=1)
         similarity_matrix = torch.matmul(normalized_queries, normalized_keys.T)
@@ -79,6 +105,15 @@ class PromptPool(nn.Module):
         return similarity_matrix
 
     def _get_top_n_prompt_indices(self, similarity_matrix: Tensor) -> Tensor:
+        """
+        Fetches the top most appropriate prompts based on the input similarity matrix. Frequency penalty may be used at this task during training.
+
+        Args:
+            similarity_matrix (Tensor): Similarity matrix.
+
+        Returns:
+            Tensor: Select prompts' indices.
+        """
         cosine_distances = 1.0 - similarity_matrix
 
         use_penalty = (
@@ -105,6 +140,16 @@ class PromptPool(nn.Module):
     def _calculate_surrogate_loss(
         self, queries: Tensor, selected_indices: Tensor
     ) -> Tensor:
+        """
+        Calculates surrogate loss based on queries and selected prompts.
+
+        Args:
+            queries (Tensor): Queries.
+            selected_indices (Tensor): Selected prompt indices.
+
+        Returns:
+            Tensor: Surrogate loss.
+        """
         selected_keys = self.keys[selected_indices]
 
         queries_expanded = queries.unsqueeze(1)
@@ -118,6 +163,9 @@ class PromptPool(nn.Module):
         return cosine_distances.sum(dim=1).mean()
 
     def _update_frequency_after_batch(self, selected_indices: Tensor) -> None:
+        """
+        Updates prompt frequency table at the end of a batch. The updates at this step only serve to record the frequency, the changes do not take effect until the end of the current task.
+        """
         flattened_indices = selected_indices.flatten()
         index_counts = torch.bincount(flattened_indices, minlength=self.pool_size)
 

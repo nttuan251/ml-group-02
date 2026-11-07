@@ -2,6 +2,10 @@ from PIL.Image import Image
 
 
 class ConvertChannels:
+    """
+    Utility class for converting the channels of an image to the desired mode.
+    """
+
     def __init__(self, mode: str) -> None:
         self.mode = mode
 

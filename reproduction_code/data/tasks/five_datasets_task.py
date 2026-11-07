@@ -4,6 +4,11 @@ from reproduction_code.data.tasks.task import Task
 
 
 class FiveDatasetsTask(Task):
+    """
+    A task class designed for the 5-datasets.
+    Information already covered in the docstrings inside the base Task class won't be specified again.
+    """
+
     def __init__(
         self,
         class_ids: list[int],
@@ -16,4 +21,13 @@ class FiveDatasetsTask(Task):
         self.label_offset = label_offset
 
     def _preprocess_label(self, label: int) -> int:
+        """
+        Label offseting is included in the lazy transformation pipeline to prevent labels from different datasets to overlap.
+
+        Args:
+            label (int): Initial label.
+
+        Returns:
+            int: Label with offset.
+        """
         return label + self.label_offset

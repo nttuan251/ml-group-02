@@ -5,6 +5,10 @@ from reproduction_code.model.forward.L2P_model import L2PModel
 
 
 class OptimizerFactory:
+    """
+    Creates an Adam optimizer for the trainable parameters of the model.
+    """
+
     def __init__(self, learning_rate: float) -> None:
         self.learning_rate = learning_rate
 

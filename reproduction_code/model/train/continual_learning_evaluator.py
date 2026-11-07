@@ -7,6 +7,10 @@ from reproduction_code.model.forward.L2P_model import L2PModel
 
 
 class ContinualLearningEvaluator:
+    """
+    Calculates model accuracy on tasks.
+    """
+
     def __init__(
         self,
         model: L2PModel,
@@ -18,6 +22,15 @@ class ContinualLearningEvaluator:
         self.device = device
 
     def calculate_accuracies_on_each_task(self, tasks: list[Task]) -> dict[int, float]:
+        """
+        Calculates and records average accuracies evaluated on each input tasks with the current model.
+
+        Args:
+            tasks (list[Task]): Input tasks.
+
+        Returns:
+            dict[int, float]: Recorded average accuracies.
+        """
         self.model.eval()
         task_accuracies = {}
 
@@ -30,6 +43,15 @@ class ContinualLearningEvaluator:
         return task_accuracies
 
     def _calculate_average_accuracy_on_task(self, task: Task) -> float:
+        """
+        Calculates average accuracy on a task by dividing the total correct predictions over the number of samples.
+
+        Args:
+            task (Task): Task.
+
+        Returns:
+            float: Average accuracy.
+        """
         batch_iterator = task.get_test_batches(self.batch_size)
 
         total_correct_predictions = 0

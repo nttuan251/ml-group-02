@@ -9,6 +9,10 @@ from reproduction_code.model.train.single_task_trainer import SingleTaskTrainer
 
 
 class ContinualLearningPipeline:
+    """
+    The complete L2P training and evaluating pipeline.
+    """
+
     def __init__(
         self,
         model: L2PModel,
@@ -24,6 +28,18 @@ class ContinualLearningPipeline:
         self.metrics_tracker = metrics_tracker
 
     def train_on_dataset_for_accuracy_and_forgetting(self) -> tuple[float, float]:
+        """
+        Performs training on all tasks of the dataset, at each task:
+        - Trains on task and updates parameters.
+        - Evaluates current model on all tasks seen including the current one.
+        - Records accuracies obtained in the previous step.
+        - If prompt frequency penalty is used, updates prompt frequency table.
+
+        At the end, calculates final model's average accuracy on all tasks, as well as average forgetting value across all tasks.
+
+        Returns:
+            tuple[float, float]: Average accuracy and average forgetting value.
+        """
         num_tasks = self.data_package.get_number_of_tasks()
 
         for current_task_index in range(num_tasks):

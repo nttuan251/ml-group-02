@@ -11,6 +11,10 @@ from reproduction_code.data.core.batch import Batch
 
 
 class TorchDatasetAdapter(TorchDataset[dict[str, Any]]):
+    """
+    An adapter that makes a Hugging Face Dataset object compatible with a Pytorch Dataset object.
+    """
+
     def __init__(self, hf_dataset: HFDataset) -> None:
         self.hf_dataset = hf_dataset
 
@@ -22,6 +26,10 @@ class TorchDatasetAdapter(TorchDataset[dict[str, Any]]):
 
 
 class BatchIterator:
+    """
+    Packages batches inside of one single task into an iterable for easy processing. Wraps Pytorch's DataLoader object.
+    """
+
     def __init__(
         self,
         dataset: TorchDatasetAdapter,
@@ -30,6 +38,16 @@ class BatchIterator:
         random_seed: int,
         num_workers: int = 4,
     ) -> None:
+        """
+        Creates a DataLoader with the necessary information. Pinned CPU memory is used to allow for more efficient CPU-GPU memory transfer.
+
+        Args:
+            dataset (TorchDatasetAdapter): Dataset.
+            batch_size (int): Batch size.
+            shuffle (bool): Toggle shuffling, the DataLoader picks data points at random to make batches.
+            random_seed (int): Random seed.
+            num_workers (int, optional): Number of subprocesses used for loading data.
+        """
         assert num_workers > 0
 
         generator = Generator().manual_seed(random_seed)
@@ -47,6 +65,15 @@ class BatchIterator:
 
     @staticmethod
     def _collate_fn(raw_batch: list[dict[str, Any]]) -> Batch:
+        """
+        Packages a specified number (batch size) of data points into a batch, transforming them into a Batch object. Used to initialize the DataLoader.
+
+        Args:
+            raw_batch (list[dict[str, Any]]): Raw batch data points.
+
+        Returns:
+            Batch: A packaged Batch object.
+        """
         x_array = [item["X"] for item in raw_batch]
         y_array = [item["Y"] for item in raw_batch]
 

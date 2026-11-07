@@ -10,9 +10,24 @@ from reproduction_code.data.tasks.task import Task
 
 
 class GaussianCIFARFetcher(CIFARFetcher):
+    """
+    Fetcher fetching data for the CIFAR-100 dataset and applying Gaussian schedule on the data.
+    Information already covered in the docstrings inside the base Fetcher class and the CIFARFetcher class won't be specified again.
+    """
+
     APPEARANCE_TIME_STD: ClassVar[float] = 0.05
 
     def _preprocess(self, data: DatasetDict) -> DataPackage:
+        """
+        Preprocesses data by applying Gaussian schedule on the data (see more information in _apply_gaussian_schedule). This dataset does not have task boundaries (the entire dataset is one giant task) and is meant to be used in task-agnostic training.
+
+        Args:
+            data (DatasetDict): Raw fetched data.
+
+        Returns:
+            DataPackage: Preprocessed data.
+        """
+
         normalized_data = self._normalize_columns(data)
 
         scheduled_train_dataset = self._apply_gaussian_schedule(
@@ -33,16 +48,26 @@ class GaussianCIFARFetcher(CIFARFetcher):
         return package
 
     def _apply_gaussian_schedule(self, dataset: Dataset) -> Dataset:
+        """
+        Applies Gaussian schedule to create a continuous data stream where class labels shift slowly.
+        Each class label is allocated a peak appearance time (distributed evenly between 0 and 1). Each data point is sampled a specific timestamp using a Gaussian distribution centered around this peak time with a standard deviation specified in APPEARANCE_TIME_STD.
+
+        Args:
+            dataset (Dataset): Dataset.
+
+        Returns:
+            Dataset: Dataset after applied Gaussian schedule.
+        """
         random_generator = random.Random(self.random_seed)
 
         appearance_time_array = []
 
         for label in dataset["Y"]:
             # Class appearances peak evenly between 0.0 and 1.0
-            label_mean_appearance_time = label / max(1, self.NUM_CLASSES - 1)
+            label_peak_appearance_time = label / max(1, self.NUM_CLASSES - 1)
 
             sampled_appearance_time = random_generator.gauss(
-                label_mean_appearance_time, self.APPEARANCE_TIME_STD
+                label_peak_appearance_time, self.APPEARANCE_TIME_STD
             )
 
             appearance_time_array.append(sampled_appearance_time)

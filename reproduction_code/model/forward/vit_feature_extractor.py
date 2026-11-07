@@ -7,6 +7,11 @@ from torch import Tensor, nn
 
 
 class ViTFeatureExtractor(nn.Module):
+    """
+    Holds a pretrained Vision Transformer (ViT).
+    Main functionalities include different stages of a model forward class, including: embedding tokens, transforming tokens and extracting CLS tokens after both of these processes.
+    """
+
     def __init__(self, model_name: str = "vit_base_patch16_224") -> None:
         super().__init__()
 
@@ -20,6 +25,15 @@ class ViTFeatureExtractor(nn.Module):
             param.requires_grad = False
 
     def pass_through_model_and_extract_cls_tokens(self, X: Tensor) -> Tensor:
+        """
+        Passes the image through the whole model before extracting the CLS tokens and returning.
+
+        Args:
+            X (Tensor): Input features.
+
+        Returns:
+            Tensor: CLS tokens.
+        """
         with torch.no_grad():
             input_tokens = self.embed_and_build_input_tokens(X)
             output_tokens = self.transform_and_normalize_tokens(input_tokens)
@@ -27,6 +41,15 @@ class ViTFeatureExtractor(nn.Module):
         return output_tokens[:, 0]
 
     def embed_and_build_input_tokens(self, X: Tensor) -> Tensor:
+        """
+        Passes the image through the embedding layers, then prepends CLS tokens and adds positional embeddings to the result tokens before returning.
+
+        Args:
+            X (Tensor): Input features.
+
+        Returns:
+            Tensor: Embedded tokens with prepended CLS and positional embeddings.
+        """
         patch_tokens = self._get_patch_tokens(X)
         patch_tokens_with_cls = self._prepend_cls_token(patch_tokens)
         input_tokens = self._add_positional_embeddings(patch_tokens_with_cls)
@@ -34,12 +57,30 @@ class ViTFeatureExtractor(nn.Module):
         return input_tokens
 
     def transform_and_normalize_tokens(self, input_tokens: Tensor) -> Tensor:
+        """
+        Passes the embedded tokens with CLS through the transformer layer of the model, before normalizing and returning.
+
+        Args:
+            input_tokens (Tensor): Embedded tokens with CLS.
+
+        Returns:
+            Tensor: Normalized transformed tokens.
+        """
         transformed_tokens = self._pass_through_transformer(input_tokens)
         output_tokens = self._normalize_tokens(transformed_tokens)
 
         return output_tokens
 
     def train(self, mode: bool = True) -> "ViTFeatureExtractor":
+        """
+        Configures the model training mode. Turns on the appropriate mode for all other modules while ensuring the core model is always in evaluation mode.
+
+        Args:
+            mode (bool, optional): Turns on training if True.
+
+        Returns:
+            ViTFeatureExtractor: The current class instance.
+        """
         super().train(mode)
         self.vit.eval()
 

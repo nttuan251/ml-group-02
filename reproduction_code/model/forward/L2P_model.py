@@ -9,6 +9,10 @@ from reproduction_code.model.forward.vit_feature_extractor import ViTFeatureExtr
 
 
 class L2PModel(nn.Module):
+    """
+    The complete pipeline of the forward pass.
+    """
+
     def __init__(
         self,
         num_classes: int,
@@ -42,6 +46,20 @@ class L2PModel(nn.Module):
     def classify_and_calculate_surrogate_loss_with_L2P(
         self, X: Tensor
     ) -> tuple[Tensor, Tensor]:
+        """
+        Image classification pipeline:
+        - Extracts prompts and calculates surrogate loss using image.
+        - Embeds image with CLS tokens and positional embeddings.
+        - Prepends prompts to the result.
+        - Passes the tokens of the previous step through the transformer layer.
+        - Extracts the transformed prompt tokens to classify and return logits.
+
+        Args:
+            X (Tensor): Input features.
+
+        Returns:
+            tuple[Tensor, Tensor]: Logits and surrogate loss.
+        """
         prompts, surrogate_loss = (
             self._retrieve_prompts_and_surrogate_loss_from_raw_data(X)
         )

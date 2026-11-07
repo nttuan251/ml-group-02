@@ -13,6 +13,12 @@ from reproduction_code.data.tasks.util.convert_channels import ConvertChannels
 
 
 class Task:
+    """
+    A task of train and test data. Returns data in the form of batches via a BatchIterator object.
+    Data inside a task always have a "train" and a "test" split. Data inside a split always has "X" and "Y" columns. This is ensured through preprocessing after fetching and validation at task initialization.
+    In task-agnostic settings. The entire dataset is crammed into one single task.
+    """
+
     REQUIRED_SPLITS: ClassVar[tuple[str, ...]] = ("train", "test")
     REQUIRED_COLUMNS: ClassVar[tuple[str, ...]] = ("X", "Y")
 
@@ -39,16 +45,34 @@ class Task:
         return self.class_ids
 
     def get_train_batches(self, batch_size: int) -> BatchIterator:
+        """
+        Returns the "train" split of the dataset in the form of a BatchIterator after applying the lazy transformer (see detailed info at _apply_lazy_transformation and _apply_transform_to_batch)
+
+        Args:
+            batch_size (int): Batch size.
+
+        Returns:
+            BatchIterator: Returned batches.
+        """
         raw_train_dataset = self.data["train"]
 
-        dataset_with_transformer = self._apply_lazy_transformer(raw_train_dataset)
+        dataset_with_transformer = self._apply_lazy_transformation(raw_train_dataset)
 
         return self._make_batches(dataset_with_transformer, batch_size, True)
 
     def get_test_batches(self, batch_size: int) -> BatchIterator:
+        """
+        Returns the "test" split of the dataset in the form of a BatchIterator after applying the lazy transformer (see detailed info at _apply_lazy_transformer and _apply_transform_to_batch)
+
+        Args:
+            batch_size (int): Batch size.
+
+        Returns:
+            BatchIterator: Returned batches.
+        """
         raw_test_dataset = self.data["test"]
 
-        dataset_with_transformer = self._apply_lazy_transformer(raw_test_dataset)
+        dataset_with_transformer = self._apply_lazy_transformation(raw_test_dataset)
 
         return self._make_batches(dataset_with_transformer, batch_size, False)
 
@@ -62,12 +86,30 @@ class Task:
             random_seed=self.random_seed,
         )
 
-    def _apply_lazy_transformer(self, dataset: Dataset) -> Dataset:
+    def _apply_lazy_transformation(self, dataset: Dataset) -> Dataset:
+        """
+        Applies a lazy transformation to the dataset. "Lazy" means the transformation does not immediately apply to the entire dataset, but only when the DataLoader fetches the needed data.
+
+        Args:
+            dataset (Dataset): Dataset.
+
+        Returns:
+            Dataset: Dataset after applying lazy transformation.
+        """
         return dataset.with_transform(self._apply_transform_to_batch)
 
     def _apply_transform_to_batch(
         self, raw_batch: dict[str, list[Any]]
     ) -> dict[str, list[Any]]:
+        """
+        Transforms a batch of data, preprocessing each data point's features and label.
+
+        Args:
+            raw_batch (dict[str, list[Any]]): Raw batch of data.
+
+        Returns:
+            dict[str, list[Any]]: Transformed batch of data.
+        """
         raw_X = raw_batch["X"]
         raw_Y = raw_batch["Y"]
 
@@ -80,13 +122,49 @@ class Task:
         }
 
     def _preprocess_data_point(self, data_point: Image) -> Tensor:
+        """
+        Applies the transform pipeline to a datapoint's features (see detailed info at _create_data_point_transform_pipeline).
+
+        Args:
+            data_point (Image): Data point features.
+
+        Returns:
+            Tensor: Transformed data point features.
+        """
         transformed_data_point = self.transform(data_point)
         assert isinstance(transformed_data_point, Tensor)
 
         return transformed_data_point
 
     def _preprocess_label(self, label: int) -> int:
+        """
+        Transforms a data point label. Does nothing for most datasets except for 5-datasets, where it applies an offset on the labels.
+
+        Args:
+            label (int): Label.
+
+        Returns:
+            int: Transformed label.
+        """
         return label
+
+    def _create_data_point_transform_pipeline(self) -> Compose:
+        """
+        Lazy tranformation pipeline, including: converting channels to RGB, resizing image to the correct size (224 x 224), converting image to a Pytorch tensor while also changing layout from HWC to CHW.
+        This function is run inside __init__ to create the pipeline function.
+
+        Returns:
+            Compose: Returned pipeline.
+        """
+        pipeline = Compose(
+            [
+                ConvertChannels("RGB"),
+                Resize(self.IMAGE_SHAPE, interpolation=self.RESIZE_INTERPOLATION_MODE),
+                ToTensor(),
+            ]
+        )
+
+        return pipeline
 
     def _assert_required_splits_exist(self, data: DatasetDict) -> None:
         for split_name in self.REQUIRED_SPLITS:
@@ -98,14 +176,3 @@ class Task:
 
             for column_name in self.REQUIRED_COLUMNS:
                 assert column_name in split_columns
-
-    def _create_data_point_transform_pipeline(self) -> Compose:
-        pipeline = Compose(
-            [
-                ConvertChannels("RGB"),
-                Resize(self.IMAGE_SHAPE, interpolation=self.RESIZE_INTERPOLATION_MODE),
-                ToTensor(),
-            ]
-        )
-
-        return pipeline

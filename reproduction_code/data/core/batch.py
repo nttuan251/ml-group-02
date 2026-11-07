@@ -5,6 +5,10 @@ from torch import Tensor, device
 
 
 class Batch:
+    """
+    A batch of data (label included). Batches are packaged and accessed via a BatchIterator object.
+    """
+
     IMAGE_SHAPE: ClassVar[tuple[int, int, int]] = (3, 224, 224)
 
     def __init__(self, X: Tensor, Y: Tensor) -> None:
@@ -16,6 +20,16 @@ class Batch:
         self.Y = Y
 
     def to(self, device: device | str) -> "Batch":
+        """
+        Moves the batch's data to the specified device, used when moving data to a GPU for computation or back to the CPU.
+
+
+        Args:
+            device (device | str): The target device to which data will be moved (example: "cpu", "cuda",...)
+
+        Returns:
+            Batch: Current Batch instance with data moved to the specified device.
+        """
         self.X = self.X.to(device)
         self.Y = self.Y.to(device)
         return self
