@@ -16,10 +16,12 @@ class ContinualLearningEvaluator:
         model: L2PModel,
         batch_size: int,
         device: device | str,
+        shared_test_set: bool,
     ) -> None:
         self.model = model
         self.batch_size = batch_size
         self.device = device
+        self.shared_test_set = shared_test_set
 
     def calculate_accuracies_on_each_task(self, tasks: list[Task]) -> dict[int, float]:
         """
@@ -32,13 +34,20 @@ class ContinualLearningEvaluator:
             dict[int, float]: Recorded average accuracies.
         """
         self.model.eval()
-        task_accuracies = {}
 
-        for current_task_index, current_task in enumerate(tasks):
-            current_task_accuracy = self._calculate_average_accuracy_on_task(
-                current_task
-            )
-            task_accuracies[current_task_index] = current_task_accuracy
+        if self.shared_test_set:
+            task_accuracy = self._calculate_average_accuracy_on_task(tasks[0])
+            task_accuracies = {
+                task_index: task_accuracy for task_index in range(len(tasks))
+            }
+
+        else:
+            task_accuracies = {}
+            for current_task_index, current_task in enumerate(tasks):
+                current_task_accuracy = self._calculate_average_accuracy_on_task(
+                    current_task
+                )
+                task_accuracies[current_task_index] = current_task_accuracy
 
         return task_accuracies
 
