@@ -11,6 +11,7 @@ class RehearsalBuffer:
         self.buffer_Y = torch.empty(0, dtype=torch.long)
         self.recorded_classes: set[int] = set()
         self.random_seed = random_seed
+        self.generator = torch.Generator().manual_seed(self.random_seed)
 
     def get_recorded_classes(self) -> set[int]:
         return self.recorded_classes
@@ -49,9 +50,9 @@ class RehearsalBuffer:
 
         sample_size = min(batch_size, buffer_size)
 
-        generator = torch.Generator()
-        generator.manual_seed(self.random_seed)
-        random_indices = torch.randperm(buffer_size, generator=generator)[:sample_size]
+        random_indices = torch.randperm(buffer_size, generator=self.generator)[
+            :sample_size
+        ]
 
         return Batch(
             X=self.buffer_X[random_indices],
