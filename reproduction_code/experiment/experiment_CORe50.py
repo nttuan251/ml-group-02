@@ -1,5 +1,6 @@
+from typing import Any
+
 from reproduction_code.data.fetchers.fetcher_type import FetcherType
-from reproduction_code.experiment.core.experiment_runner import ExperimentRunner
 from reproduction_code.experiment.core.wandb_config_enums import (
     AblationTagDetail,
     BufferTagDetail,
@@ -10,16 +11,15 @@ from reproduction_code.experiment.core.wandb_config_enums import (
     ProjectDetail,
 )
 
-if __name__ == "__main__":
-    RUN_NAME = ""
 
+def get_CORe50_config(run_name: str) -> dict[str, Any]:
     wandb_log_details = {
         "project": ProjectDetail.L2P_PROJECT,
-        "name": RUN_NAME,
+        "name": run_name,
         "group": GroupDetail.TEST,
         "entity": EntityDetail.DEFAULT,
         "tags": [
-            DatasetTagDetail.CORE50,
+            DatasetTagDetail.CIFAR100,
             ModelTagDetail.L2P,
             BufferTagDetail.NO_BUFFER,
             AblationTagDetail.NO_ABLATION,
@@ -43,8 +43,4 @@ if __name__ == "__main__":
         "wandb_log_details": wandb_log_details,
     }
 
-    experiment_runner = ExperimentRunner(**run_config)
-
-    print("========== STARTING RUN ==========")
-    experiment_runner.execute()
-    print("========== RUN SUCCESSFUL ==========")
+    return run_config
