@@ -40,6 +40,9 @@ class Batch:
     def get_Y(self) -> Tensor:
         return self.Y
 
+    def get_batch_size(self) -> int:
+        return self.Y.shape[0]
+
     def merge(self, other: "Batch") -> "Batch":
         """
         Merges the current instance with another Batch instance after moving it to the same device as the current.

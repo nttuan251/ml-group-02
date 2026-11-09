@@ -90,7 +90,9 @@ class SingleTaskTrainer:
         """
         epoch_losses = []
 
-        for _ in range(self.epochs_per_task):
+        for epoch_index in range(self.epochs_per_task):
+            print(f"** EPOCH {epoch_index} **")
+
             epoch_loss = self._train_on_epoch_and_calculate_average_loss(
                 batch_iterator, class_mask, optimizer
             )
@@ -116,9 +118,18 @@ class SingleTaskTrainer:
         num_batches = len(batch_iterator)
         assert num_batches > 0
 
-        for batch in batch_iterator:
+        latest_batch_start_index = 0
+
+        for batch_index, batch in enumerate(batch_iterator):
             batch_loss = self._train_on_batch(batch, class_mask, optimizer)
             total_epoch_loss += batch_loss
+
+            current_batch_size = batch.get_batch_size()
+            current_batch_end_index = latest_batch_start_index + current_batch_size
+            print(
+                f"Batch {batch_index} ({latest_batch_start_index}-{current_batch_end_index}) loss: {batch_loss}"
+            )
+            latest_batch_start_index += self.batch_size
 
         average_epoch_loss = total_epoch_loss / num_batches
 

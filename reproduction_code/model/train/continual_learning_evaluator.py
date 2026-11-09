@@ -49,6 +49,8 @@ class ContinualLearningEvaluator:
                 )
                 task_accuracies[current_task_index] = current_task_accuracy
 
+                print(f"Accuracy on task {current_task_index}: {current_task_accuracy}")
+
         return task_accuracies
 
     def _calculate_average_accuracy_on_task(self, task: Task) -> float:
