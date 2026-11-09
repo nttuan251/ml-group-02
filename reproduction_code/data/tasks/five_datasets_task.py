@@ -1,3 +1,4 @@
+import numpy as np
 from datasets import DatasetDict
 
 from reproduction_code.data.tasks.task import Task
@@ -31,3 +32,17 @@ class FiveDatasetsTask(Task):
             int: Label with offset.
         """
         return label + self.label_offset
+
+    def _sample_indices_of_class(
+        self,
+        labels_column: np.ndarray,
+        class_id: int,
+        samples_per_class: int,
+        rng: np.random.Generator,
+    ) -> list[int]:
+        return super()._sample_indices_of_class(
+            labels_column,
+            class_id - self.label_offset,
+            samples_per_class,
+            rng,
+        )

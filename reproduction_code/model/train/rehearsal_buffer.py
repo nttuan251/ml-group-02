@@ -5,13 +5,19 @@ from reproduction_code.data.tasks.task import Task
 
 
 class RehearsalBuffer:
-    def __init__(self, samples_per_class: int, random_seed: int) -> None:
+    def __init__(
+        self,
+        samples_per_class: int,
+        random_seed: int,
+        allow_class_overlap: bool,
+    ) -> None:
         self.samples_per_class = samples_per_class
         self.buffer_X = torch.empty(0)
         self.buffer_Y = torch.empty(0, dtype=torch.long)
         self.recorded_classes: set[int] = set()
         self.random_seed = random_seed
         self.generator = torch.Generator().manual_seed(self.random_seed)
+        self.allow_class_overlap = allow_class_overlap
 
     def get_recorded_classes(self) -> set[int]:
         return self.recorded_classes
@@ -27,8 +33,9 @@ class RehearsalBuffer:
             task (Task): Task.
         """
         class_ids_in_task = task.get_class_ids()
-        no_class_id_overlap = len(set(class_ids_in_task) - self.recorded_classes) == 0
-        assert no_class_id_overlap
+
+        if not self.allow_class_overlap:
+            assert self.recorded_classes.isdisjoint(class_ids_in_task)
 
         batch_to_buffer = task.get_n_samples_per_class(self.samples_per_class)
 

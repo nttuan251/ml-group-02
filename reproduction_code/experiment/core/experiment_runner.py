@@ -112,7 +112,8 @@ class ExperimentRunner:
 
         optimizer_factory = self._initialize_optimizer_factory()
 
-        rehearsal_buffer = self._initialize_rehearsal_buffer()
+        num_tasks = data_package.get_number_of_tasks()
+        rehearsal_buffer = self._initialize_rehearsal_buffer(num_tasks=num_tasks)
 
         single_task_trainer = self._intialize_single_task_trainer(
             model=L2P_model,
@@ -122,7 +123,6 @@ class ExperimentRunner:
 
         evaluator = self._initialize_evaluator(model=L2P_model)
 
-        num_tasks = data_package.get_number_of_tasks()
         metrics_tracker = self._intialize_metrics_tracker(num_tasks=num_tasks)
 
         pipeline = self._initialize_pipeline(
@@ -163,11 +163,15 @@ class ExperimentRunner:
 
         return optimizer_factory
 
-    def _initialize_rehearsal_buffer(self) -> RehearsalBuffer | None:
+    def _initialize_rehearsal_buffer(self, num_tasks: int) -> RehearsalBuffer | None:
         if self.rehearsal_samples_per_class > 0:
+            samples_per_class = self.rehearsal_samples_per_class
+            if self.shared_test_set:
+                samples_per_class = max(1, samples_per_class // num_tasks)
             rehearsal_buffer = RehearsalBuffer(
                 samples_per_class=self.rehearsal_samples_per_class,
                 random_seed=self.random_seed,
+                allow_class_overlap=self.shared_test_set,
             )
         else:
             rehearsal_buffer = None
