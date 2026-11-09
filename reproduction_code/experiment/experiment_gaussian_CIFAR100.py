@@ -39,6 +39,7 @@ def get_gaussian_CIFAR100_config(run_name: str) -> dict[str, Any]:
         "epochs_per_task": 1,
         "learning_rate": 0.03,
         "lambda_surrogate": 0.5,
+        "grad_clip_max_norm": 1.0,
         "rehearsal_samples_per_class": 0,
         "wandb_log_details": wandb_log_details,
     }

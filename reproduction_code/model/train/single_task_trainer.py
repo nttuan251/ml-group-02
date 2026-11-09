@@ -23,6 +23,7 @@ class SingleTaskTrainer:
         batch_size: int,
         device: device | str,
         lambda_surrogate: float,
+        grad_clip_max_norm: float,
         rehearsal_buffer: RehearsalBuffer | None,
     ) -> None:
         self.model = model
@@ -31,6 +32,7 @@ class SingleTaskTrainer:
         self.batch_size = batch_size
         self.device = device
         self.lambda_surrogate = lambda_surrogate
+        self.grad_clip_max_norm = grad_clip_max_norm
         self.rehearsal_buffer = rehearsal_buffer
 
     def train_on_task(self, task: Task, total_num_classes: int) -> list[float]:
@@ -186,9 +188,20 @@ class SingleTaskTrainer:
 
             total_loss_value += chunk_loss.item() * chunk_weight
 
+        self._clip_gradients()
         self._update_parameters_using_optimizer(optimizer)
 
         return total_loss_value
+
+    def _clip_gradients(self) -> None:
+        trainable_parameters = [
+            parameter
+            for parameter in self.model.parameters()
+            if parameter.requires_grad
+        ]
+        torch.nn.utils.clip_grad_norm_(
+            trainable_parameters, max_norm=self.grad_clip_max_norm
+        )
 
     def _build_class_mask(self, class_ids: list[int], total_num_classes: int) -> Tensor:
         mask = torch.zeros(total_num_classes, dtype=torch.bool, device=self.device)

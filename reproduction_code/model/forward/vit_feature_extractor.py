@@ -12,7 +12,7 @@ class ViTFeatureExtractor(nn.Module):
     Main functionalities include different stages of a model forward class, including: embedding tokens, transforming tokens and extracting CLS tokens after both of these processes.
     """
 
-    def __init__(self, model_name: str = "vit_base_patch16_224") -> None:
+    def __init__(self, model_name: str = "vit_base_patch16_224.orig_in21k") -> None:
         super().__init__()
 
         self.vit = cast(

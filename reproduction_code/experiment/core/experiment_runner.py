@@ -43,6 +43,7 @@ class ExperimentRunner:
         epochs_per_task: int,
         learning_rate: float,
         lambda_surrogate: float,
+        grad_clip_max_norm: float,
         rehearsal_samples_per_class: int,
         wandb_log_details: dict[str, Any],
     ) -> None:
@@ -57,6 +58,7 @@ class ExperimentRunner:
         self.epochs_per_task = epochs_per_task
         self.learning_rate = learning_rate
         self.lambda_surrogate = lambda_surrogate
+        self.grad_clip_max_norm = grad_clip_max_norm
         self.rehearsal_samples_per_class = rehearsal_samples_per_class
         self.shared_test_set = self.data_fetcher == FetcherType.CORE50
         self.wandb_log_details = wandb_log_details
@@ -191,6 +193,7 @@ class ExperimentRunner:
             batch_size=self.batch_size,
             device=self.device,
             lambda_surrogate=self.lambda_surrogate,
+            grad_clip_max_norm=self.grad_clip_max_norm,
             rehearsal_buffer=rehearsal_buffer,
         )
 
