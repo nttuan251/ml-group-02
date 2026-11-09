@@ -147,6 +147,7 @@ class SingleTaskTrainer:
         - Calculates total loss, then performs backpropagation and updates parameters.
 
         If rehearsal buffer is used and buffer is not empty, an extra batch of past data is appended to the current batch.
+        The final batch is always divided into batch-sized chunks to process at a time for fear of OOM issues when rehearsal buffer is used, in which case the batch size increases twofold.
 
         Args:
             batch (Batch): Batch.
@@ -165,19 +166,27 @@ class SingleTaskTrainer:
 
         X = batch.get_X()
         Y = batch.get_Y()
+        total_samples = batch.get_batch_size()
 
-        logits, surrogate_loss = (
-            self.model.classify_and_calculate_surrogate_loss_with_L2P(X)
-        )
-        masked_logits = self._mask_logits_with_class_mask(logits, class_mask)
+        total_loss_value = 0.0
+        for start_index in range(0, total_samples, self.batch_size):
+            X_chunk = X[start_index : start_index + self.batch_size]
+            Y_chunk = Y[start_index : start_index + self.batch_size]
 
-        cross_entropy_loss = nn.functional.cross_entropy(masked_logits, Y)
-        total_loss = cross_entropy_loss + (self.lambda_surrogate * surrogate_loss)
+            logits, surrogate_loss = (
+                self.model.classify_and_calculate_surrogate_loss_with_L2P(X_chunk)
+            )
+            masked_logits = self._mask_logits_with_class_mask(logits, class_mask)
 
-        self._backpropagation(loss_result=total_loss)
+            cross_entropy_loss = nn.functional.cross_entropy(masked_logits, Y_chunk)
+            chunk_loss = cross_entropy_loss + (self.lambda_surrogate * surrogate_loss)
+
+            chunk_weight = X_chunk.shape[0] / total_samples
+            self._backpropagation(loss_result=chunk_loss * chunk_weight)
+
+            total_loss_value += chunk_loss.item() * chunk_weight
+
         self._update_parameters_using_optimizer(optimizer)
-
-        total_loss_value = total_loss.item()
 
         return total_loss_value
 

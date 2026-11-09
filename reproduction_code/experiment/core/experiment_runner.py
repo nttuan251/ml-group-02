@@ -169,7 +169,7 @@ class ExperimentRunner:
             if self.shared_test_set:
                 samples_per_class = max(1, samples_per_class // num_tasks)
             rehearsal_buffer = RehearsalBuffer(
-                samples_per_class=self.rehearsal_samples_per_class,
+                samples_per_class=samples_per_class,
                 random_seed=self.random_seed,
                 allow_class_overlap=self.shared_test_set,
             )

@@ -142,10 +142,12 @@ class Task:
         samples_per_class: int,
         rng: np.random.Generator,
     ) -> list[int]:
-        class_indices = np.flatnonzero(labels_column == class_id)
-        assert len(class_indices) >= samples_per_class
+        indices_of_matching_instances = np.flatnonzero(labels_column == class_id)
+        assert len(indices_of_matching_instances) >= samples_per_class
 
-        return rng.choice(class_indices, size=samples_per_class, replace=False).tolist()
+        return rng.choice(
+            indices_of_matching_instances, size=samples_per_class, replace=False
+        ).tolist()
 
     def _apply_lazy_transformation(self, dataset: Dataset) -> Dataset:
         """
