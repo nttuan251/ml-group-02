@@ -6,6 +6,7 @@ from reproduction_code.experiment.core.wandb_config_enums import (
     BufferTagDetail,
     DatasetTagDetail,
     EntityDetail,
+    FrequencyTableTagDetail,
     GroupDetail,
     ModelTagDetail,
     ProjectDetail,
@@ -23,6 +24,7 @@ def get_5_datasets_config(run_name: str) -> dict[str, Any]:
             ModelTagDetail.L2P,
             BufferTagDetail.NO_BUFFER,
             AblationTagDetail.NO_ABLATION,
+            FrequencyTableTagDetail.NO_FREQUENCY_TABLE,
         ],
         "save_code": True,
     }
