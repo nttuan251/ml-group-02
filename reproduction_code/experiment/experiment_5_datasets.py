@@ -20,11 +20,11 @@ def get_5_datasets_config(run_name: str) -> dict[str, Any]:
         "group": GroupDetail.TEST,
         "entity": EntityDetail.DEFAULT,
         "tags": [
-            DatasetTagDetail.CIFAR100,
+            DatasetTagDetail.FIVE_DATASETS,
             ModelTagDetail.L2P,
             BufferTagDetail.NO_BUFFER,
             AblationTagDetail.NO_ABLATION,
-            FrequencyTableTagDetail.NO_FREQUENCY_TABLE,
+            FrequencyTableTagDetail.FREQUENCY_TABLE,
         ],
         "save_code": True,
     }

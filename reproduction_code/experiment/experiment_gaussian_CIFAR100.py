@@ -20,7 +20,7 @@ def get_gaussian_CIFAR100_config(run_name: str) -> dict[str, Any]:
         "group": GroupDetail.TEST,
         "entity": EntityDetail.DEFAULT,
         "tags": [
-            DatasetTagDetail.CIFAR100,
+            DatasetTagDetail.GAUSSIAN_CIFAR100,
             ModelTagDetail.L2P,
             BufferTagDetail.NO_BUFFER,
             AblationTagDetail.NO_ABLATION,

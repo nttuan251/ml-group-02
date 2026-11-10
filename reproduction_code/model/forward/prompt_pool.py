@@ -121,7 +121,9 @@ class PromptPool(nn.Module):
         )
 
         if use_penalty:
-            final_distances = cosine_distances * self.prompt_normalized_frequencies_task
+            final_distances = cosine_distances * (
+                1.0 + self.prompt_normalized_frequencies_task
+            )
         else:
             final_distances = cosine_distances
 
