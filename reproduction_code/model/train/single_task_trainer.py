@@ -34,6 +34,7 @@ class SingleTaskTrainer:
         self.lambda_surrogate = lambda_surrogate
         self.grad_clip_max_norm = grad_clip_max_norm
         self.rehearsal_buffer = rehearsal_buffer
+        self.scaler = torch.amp.GradScaler("cuda")
 
     def train_on_task(self, task: Task, total_num_classes: int) -> list[float]:
         """
@@ -173,12 +174,15 @@ class SingleTaskTrainer:
             Y_chunk = Y[start_index : start_index + self.batch_size]
             queries_chunk = queries[start_index : start_index + self.batch_size]
 
-            logits, surrogate_loss = (
-                self.model.classify_and_calculate_surrogate_loss_with_L2P(
-                    X_chunk, queries_chunk
+            with torch.autocast("cuda", dtype=torch.float16):
+                logits, surrogate_loss = (
+                    self.model.classify_and_calculate_surrogate_loss_with_L2P(
+                        X_chunk, queries_chunk
+                    )
                 )
+            masked_logits = self._mask_logits_with_class_mask(
+                logits.float(), class_mask
             )
-            masked_logits = self._mask_logits_with_class_mask(logits, class_mask)
 
             cross_entropy_loss = nn.functional.cross_entropy(masked_logits, Y_chunk)
             chunk_loss = cross_entropy_loss + (self.lambda_surrogate * surrogate_loss)
@@ -188,8 +192,11 @@ class SingleTaskTrainer:
 
             total_loss_value += (chunk_loss * chunk_weight).detach()
 
+        self.scaler.unscale_(optimizer)
         self._clip_gradients()
+
         self._update_parameters_using_optimizer(optimizer)
+        self.scaler.update()
 
         return total_loss_value
 
@@ -210,10 +217,10 @@ class SingleTaskTrainer:
         return mask
 
     def _backpropagation(self, loss_result: Tensor) -> None:
-        loss_result.backward()
+        self.scaler.scale(loss_result).backward()
 
     def _update_parameters_using_optimizer(self, optimizer: Optimizer) -> None:
-        optimizer.step()
+        self.scaler.step(optimizer)
 
     def _clear_optimizer_gradients(self, optimizer: Optimizer) -> None:
         optimizer.zero_grad()

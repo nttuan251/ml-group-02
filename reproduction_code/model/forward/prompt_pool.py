@@ -56,18 +56,24 @@ class PromptPool(nn.Module):
         Returns:
             tuple[Tensor, Tensor]: Prompt tokens and surrogate loss.
         """
-        with torch.no_grad():
-            similarity_matrix = self._calculate_cosine_similarity(queries, self.keys)
+        with torch.autocast("cuda", enabled=False):
+            queries = queries.float()
+            with torch.no_grad():
+                similarity_matrix = self._calculate_cosine_similarity(
+                    queries, self.keys
+                )
 
-            selected_prompt_indices = self._get_top_n_prompt_indices(similarity_matrix)
+                selected_prompt_indices = self._get_top_n_prompt_indices(
+                    similarity_matrix
+                )
 
-            if self.training and self.use_frequency_penalty:
-                self._update_frequency_after_batch(selected_prompt_indices)
+                if self.training and self.use_frequency_penalty:
+                    self._update_frequency_after_batch(selected_prompt_indices)
 
-        prompt_tokens = self._extract_prompts(selected_prompt_indices)
-        surrogate_loss = self._calculate_surrogate_loss(
-            queries, selected_prompt_indices
-        )
+            prompt_tokens = self._extract_prompts(selected_prompt_indices)
+            surrogate_loss = self._calculate_surrogate_loss(
+                queries, selected_prompt_indices
+            )
 
         return prompt_tokens, surrogate_loss
 

@@ -94,10 +94,11 @@ class ContinualLearningEvaluator:
         Y = batch.get_Y()
         queries = batch.get_queries()
 
-        logits, _ = self.model.classify_and_calculate_surrogate_loss_with_L2P(
-            X, queries
-        )
-        predictions = torch.argmax(logits, dim=1)
+        with torch.autocast("cuda", dtype=torch.float16):
+            logits, _ = self.model.classify_and_calculate_surrogate_loss_with_L2P(
+                X, queries
+            )
+        predictions = torch.argmax(logits.float(), dim=1)
 
         num_correct_predictions = (predictions == Y).sum()
         total_samples = Y.shape[0]
