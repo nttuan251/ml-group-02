@@ -40,6 +40,7 @@ def get_5_datasets_config(run_name: str) -> dict[str, Any]:
         "batch_size": 128,
         "epochs_per_task": 5,
         "learning_rate": 0.03,
+        "momentum": None,
         "lambda_surrogate": 0.5,
         "grad_clip_max_norm": 1.0,
         "rehearsal_samples_per_class": 0,

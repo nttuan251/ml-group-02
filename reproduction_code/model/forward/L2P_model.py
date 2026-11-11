@@ -20,12 +20,13 @@ class L2PModel(nn.Module):
         prompt_length: int,
         top_n: int,
         use_frequency_penalty: bool,
+        frozen_model: bool,
         embed_dimension: int = 768,
         key_dimension: int = 768,
     ) -> None:
         super().__init__()
 
-        self.feature_extractor = ViTFeatureExtractor()
+        self.feature_extractor = ViTFeatureExtractor(frozen_model)
 
         self.prompt_pool = PromptPool(
             pool_size=pool_size,
