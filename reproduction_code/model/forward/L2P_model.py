@@ -45,11 +45,13 @@ class L2PModel(nn.Module):
         )
 
     def classify_and_calculate_surrogate_loss_with_L2P(
-        self, X: Tensor
+        self,
+        X: Tensor,
+        queries: Tensor,
     ) -> tuple[Tensor, Tensor]:
         """
         Image classification pipeline:
-        - Extracts prompts and calculates surrogate loss using image.
+        - Uses the precomputed queries to select prompts and calculate the surrogate loss.
         - Embeds image with CLS tokens and positional embeddings.
         - Prepends prompts to the result.
         - Passes the tokens of the previous step through the transformer layer.
@@ -57,12 +59,13 @@ class L2PModel(nn.Module):
 
         Args:
             X (Tensor): Input features.
+            queries (Tensor): Precomputed CLS tokens.
 
         Returns:
             tuple[Tensor, Tensor]: Logits and surrogate loss.
         """
         prompts, surrogate_loss = (
-            self._retrieve_prompts_and_surrogate_loss_from_raw_data(X)
+            self.prompt_pool.select_prompts_and_calculate_loss_from_queries(queries)
         )
 
         input_tokens = self._build_input_tokens_with_prompts(X, prompts)
@@ -85,16 +88,6 @@ class L2PModel(nn.Module):
         input_tokens = self._combine_tokens(prompts, input_tokens_without_prompts)
 
         return input_tokens
-
-    def _retrieve_prompts_and_surrogate_loss_from_raw_data(
-        self, X: Tensor
-    ) -> tuple[Tensor, Tensor]:
-        queries = self.feature_extractor.pass_through_model_and_extract_cls_tokens(X)
-        prompts, surrogate_loss = (
-            self.prompt_pool.select_prompts_and_calculate_loss_from_queries(queries)
-        )
-
-        return prompts, surrogate_loss
 
     def _combine_tokens(self, prompts: Tensor, base_tokens: Tensor) -> Tensor:
         return torch.cat((prompts, base_tokens), dim=1)

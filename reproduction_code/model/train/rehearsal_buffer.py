@@ -12,8 +12,7 @@ class RehearsalBuffer:
         allow_class_overlap: bool,
     ) -> None:
         self.samples_per_class = samples_per_class
-        self.buffer_X = torch.empty(0)
-        self.buffer_Y = torch.empty(0, dtype=torch.long)
+        self.buffer: Batch | None = None
         self.recorded_classes: set[int] = set()
         self.random_seed = random_seed
         self.generator = torch.Generator().manual_seed(self.random_seed)
@@ -23,7 +22,7 @@ class RehearsalBuffer:
         return self.recorded_classes
 
     def is_empty(self) -> bool:
-        return self.buffer_Y.shape[0] == 0
+        return self.buffer is None
 
     def fetch_and_save_samples_from_task(self, task: Task) -> None:
         """
@@ -52,27 +51,16 @@ class RehearsalBuffer:
         Returns:
             Batch: Packaged random samples.
         """
-        buffer_size = self.buffer_Y.shape[0]
-        assert buffer_size > 0
-
-        sample_size = min(batch_size, buffer_size)
-
+        assert self.buffer is not None
+        buffer_size = self.buffer.get_batch_size()
         random_indices = torch.randperm(buffer_size, generator=self.generator)[
-            :sample_size
+            : min(batch_size, buffer_size)
         ]
 
-        return Batch(
-            X=self.buffer_X[random_indices],
-            Y=self.buffer_Y[random_indices],
-        )
+        return self.buffer.select(random_indices)
 
     def _add_samples(self, batch_to_buffer: Batch) -> None:
-        X_buffer = batch_to_buffer.get_X()
-        Y_buffer = batch_to_buffer.get_Y()
-
-        if self.buffer_X.numel() == 0:
-            self.buffer_X = X_buffer
-            self.buffer_Y = Y_buffer
+        if self.buffer is None:
+            self.buffer = batch_to_buffer
         else:
-            self.buffer_X = torch.cat((self.buffer_X, X_buffer), dim=0)
-            self.buffer_Y = torch.cat((self.buffer_Y, Y_buffer), dim=0)
+            self.buffer = self.buffer.merge(batch_to_buffer)

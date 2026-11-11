@@ -14,6 +14,9 @@ class DataPackage:
     def get_task(self, task_index: int) -> Task:
         return self.tasks[task_index]
 
+    def get_tasks(self) -> list[Task]:
+        return self.tasks
+
     def get_number_of_tasks(self) -> int:
         return len(self.tasks)
 

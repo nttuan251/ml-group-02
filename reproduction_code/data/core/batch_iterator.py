@@ -3,7 +3,7 @@ from typing import Any
 
 import torch
 from datasets import Dataset as HFDataset
-from torch import Generator
+from torch import Generator, Tensor
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
 
@@ -15,14 +15,20 @@ class TorchDatasetAdapter(TorchDataset[dict[str, Any]]):
     An adapter that makes a Hugging Face Dataset object compatible with a Pytorch Dataset object.
     """
 
-    def __init__(self, hf_dataset: HFDataset) -> None:
+    def __init__(self, hf_dataset: HFDataset, queries: Tensor | None = None) -> None:
         self.hf_dataset = hf_dataset
+        self.queries = queries
 
     def __len__(self) -> int:
         return len(self.hf_dataset)
 
     def __getitem__(self, index: int) -> dict[str, Any]:
-        return self.hf_dataset[index]
+        item = self.hf_dataset[index]
+
+        if self.queries is not None:
+            item["queries"] = self.queries[index]
+
+        return item
 
 
 class BatchIterator:
@@ -77,9 +83,14 @@ class BatchIterator:
         x_array = [item["X"] for item in raw_batch]
         y_array = [item["Y"] for item in raw_batch]
 
+        queries = None
+        if "queries" in raw_batch[0]:
+            queries = torch.stack([item["queries"] for item in raw_batch])
+
         return Batch(
             X=torch.stack(x_array),
             Y=torch.tensor(y_array, dtype=torch.long),
+            queries=queries,
         )
 
     def __iter__(self) -> Iterator[Batch]:

@@ -18,19 +18,9 @@ class FiveDatasetsTask(Task):
         label_offset: int,
     ) -> None:
         super().__init__(class_ids, data, random_seed)
-
         self.label_offset = label_offset
 
     def _preprocess_label(self, label: int) -> int:
-        """
-        Label offseting is included in the lazy transformation pipeline to prevent labels from different datasets to overlap.
-
-        Args:
-            label (int): Initial label.
-
-        Returns:
-            int: Label with offset.
-        """
         return label + self.label_offset
 
     def _sample_indices_of_class(

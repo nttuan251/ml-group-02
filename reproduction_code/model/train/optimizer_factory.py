@@ -13,7 +13,7 @@ class OptimizerType(str, Enum):
 
 class OptimizerFactory:
     """
-    Creates an Adam optimizer for the trainable parameters of the model.
+    Creates an Adam or SGD optimizer for the trainable parameters of the model.
     """
 
     def __init__(

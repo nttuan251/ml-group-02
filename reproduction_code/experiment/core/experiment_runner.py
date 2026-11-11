@@ -12,8 +12,10 @@ from reproduction_code.data.fetchers.five_datasets_fetcher import FiveDatasetsFe
 from reproduction_code.data.fetchers.gaussian_CIFAR_fetcher import GaussianCIFARFetcher
 from reproduction_code.experiment.core.random_seed import set_global_seed
 from reproduction_code.model.forward.L2P_model import L2PModel
-from reproduction_code.model.train.continual_learning_pipeline import (
+from reproduction_code.model.train.continual_learning_evaluator import (
     ContinualLearningEvaluator,
+)
+from reproduction_code.model.train.continual_learning_pipeline import (
     ContinualLearningPipeline,
 )
 from reproduction_code.model.train.metrics_tracker import MetricsTracker
@@ -21,6 +23,7 @@ from reproduction_code.model.train.optimizer_factory import (
     OptimizerFactory,
     OptimizerType,
 )
+from reproduction_code.model.train.query_precomputer import QueryPrecomputer
 from reproduction_code.model.train.rehearsal_buffer import RehearsalBuffer
 from reproduction_code.model.train.single_task_trainer import SingleTaskTrainer
 
@@ -100,7 +103,7 @@ class ExperimentRunner:
         W&B is initialized before the initialization.
 
         Returns:
-            ContinualLearningPipeline: _description_
+            ContinualLearningPipeline: Pipeline.
         """
 
         self.wandb_log_details.update({"config": self.config})
@@ -116,6 +119,8 @@ class ExperimentRunner:
 
         num_classes = data_package.get_number_of_classes()
         L2P_model = self._intialize_model(num_classes=num_classes)
+
+        self._precompute_queries(model=L2P_model, data_package=data_package)
 
         optimizer_factory = self._initialize_optimizer_factory()
 
@@ -142,6 +147,17 @@ class ExperimentRunner:
         )
 
         return pipeline
+
+    def _precompute_queries(self, model: L2PModel, data_package: DataPackage) -> None:
+        query_precomputer = QueryPrecomputer(
+            feature_extractor=model.feature_extractor,
+            batch_size=self.batch_size,
+            device=self.device,
+        )
+        query_precomputer.precompute_for_tasks(
+            tasks=data_package.get_tasks(),
+            shared_test_set=self.shared_test_set,
+        )
 
     def _initialize_data(self) -> DataPackage:
         data_fetcher_object = self.FETCHER_MAP[self.data_fetcher](

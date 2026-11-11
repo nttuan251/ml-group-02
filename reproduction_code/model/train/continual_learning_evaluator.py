@@ -1,5 +1,5 @@
 import torch
-from torch import device
+from torch import Tensor, device
 
 from reproduction_code.data.core.batch import Batch
 from reproduction_code.data.tasks.task import Task
@@ -65,10 +65,12 @@ class ContinualLearningEvaluator:
         """
         batch_iterator = task.get_test_batches(self.batch_size)
 
-        total_correct_predictions = 0
+        total_correct_predictions = torch.zeros(
+            (), device=self.device, dtype=torch.long
+        )
         total_samples = 0
 
-        with torch.no_grad():
+        with torch.inference_mode():
             for batch in batch_iterator:
                 correct_predictions, samples = (
                     self._get_correct_predictions_and_total_samples_from_batch(batch)
@@ -79,22 +81,25 @@ class ContinualLearningEvaluator:
         if total_samples == 0:
             return 0.0
 
-        task_accuracy = total_correct_predictions / total_samples
+        task_accuracy = total_correct_predictions.item() / total_samples
 
         return task_accuracy
 
     def _get_correct_predictions_and_total_samples_from_batch(
         self, batch: Batch
-    ) -> tuple[int, int]:
+    ) -> tuple[Tensor, int]:
         batch.to(self.device)
 
         X = batch.get_X()
         Y = batch.get_Y()
+        queries = batch.get_queries()
 
-        logits, _ = self.model.classify_and_calculate_surrogate_loss_with_L2P(X)
+        logits, _ = self.model.classify_and_calculate_surrogate_loss_with_L2P(
+            X, queries
+        )
         predictions = torch.argmax(logits, dim=1)
 
-        num_correct_predictions = (predictions == Y).sum().item()
+        num_correct_predictions = (predictions == Y).sum()
         total_samples = Y.shape[0]
 
-        return int(num_correct_predictions), int(total_samples)
+        return num_correct_predictions, total_samples

@@ -37,18 +37,18 @@ class SingleTaskTrainer:
 
     def train_on_task(self, task: Task, total_num_classes: int) -> list[float]:
         """
-        Performs training on one task for a predetermined number of epochs and records all the epoch losses. Initialize a new Adam optimizer for each task.
+        Performs training on one task for a predetermined number of epochs and records all the epoch losses. Initialize a new optimizer for each task.
 
         Args:
             task (Task): Task.
-            total_num_classes (int): Total number of classes in the current task.
+            total_num_classes (int): Total number of classes in the dataset.
 
         Returns:
             list[float]: Epoch losses.
         """
         self.model.train()
 
-        # Optimizer created anew. Adam's internal state is reset between tasks
+        # Optimizer created anew, internal states are reset every task.
         optimizer = self.optimizer_factory.create_optimizer(self.model)
 
         seen_class_ids = self._build_seen_class_ids(task)
@@ -85,7 +85,7 @@ class SingleTaskTrainer:
         Args:
             batch_iterator (BatchIterator): Iterator for all the batches in one task.
             class_mask (Tensor): Current task's class labels mask.
-            optimizer (Optimizer): Optimizer (Adam).
+            optimizer (Optimizer): Optimizer (Adam or SGD).
 
         Returns:
             list[float]: Epoch losses.
@@ -111,35 +111,29 @@ class SingleTaskTrainer:
         Args:
             batch_iterator (BatchIterator): Iterator for all the batches in one task.
             class_mask (Tensor): Current task's class labels mask.
-            optimizer (Optimizer): Optimizer (Adam).
+            optimizer (Optimizer): Optimizer (Adam or SGD).
 
         Returns:
             float: Average epoch loss.
         """
-        total_epoch_loss = 0.0
-        num_batches = len(batch_iterator)
-        assert num_batches > 0
-
-        latest_batch_start_index = 0
+        total_epoch_loss = torch.zeros((), device=self.device)
 
         for batch_index, batch in enumerate(batch_iterator):
             batch_loss = self._train_on_batch(batch, class_mask, optimizer)
             total_epoch_loss += batch_loss
 
-            current_batch_size = batch.get_batch_size()
-            current_batch_end_index = latest_batch_start_index + current_batch_size
-            print(
-                f"Batch {batch_index} ({latest_batch_start_index}-{current_batch_end_index}) loss: {batch_loss}"
-            )
-            latest_batch_start_index += self.batch_size
+            if batch_index % 10 == 0 or batch_index == len(batch_iterator) - 1:
+                print(f"Batch {batch_index} loss: {batch_loss.item()}")
 
-        average_epoch_loss = total_epoch_loss / num_batches
+        num_batches = len(batch_iterator)
+        assert num_batches > 0
+        average_epoch_loss = (total_epoch_loss / num_batches).item()
 
         return average_epoch_loss
 
     def _train_on_batch(
         self, batch: Batch, class_mask: Tensor, optimizer: Optimizer
-    ) -> float:
+    ) -> Tensor:
         """
         Trains data on a batch in the following steps:
         - Moves data to desired device, clear gradients.
@@ -154,10 +148,10 @@ class SingleTaskTrainer:
         Args:
             batch (Batch): Batch.
             class_mask (Tensor): Current task's class labels mask.
-            optimizer (Optimizer): Optimizer (Adam).
+            optimizer (Optimizer): Optimizer (Adam or SGD).
 
         Returns:
-            float: Total loss value.
+            Tensor: Total loss value.
         """
         batch.to(self.device)
         self._clear_optimizer_gradients(optimizer)
@@ -170,15 +164,19 @@ class SingleTaskTrainer:
 
         X = batch.get_X()
         Y = batch.get_Y()
+        queries = batch.get_queries()
         total_samples = batch.get_batch_size()
 
-        total_loss_value = 0.0
+        total_loss_value = torch.zeros((), device=self.device)
         for start_index in range(0, total_samples, self.batch_size):
             X_chunk = X[start_index : start_index + self.batch_size]
             Y_chunk = Y[start_index : start_index + self.batch_size]
+            queries_chunk = queries[start_index : start_index + self.batch_size]
 
             logits, surrogate_loss = (
-                self.model.classify_and_calculate_surrogate_loss_with_L2P(X_chunk)
+                self.model.classify_and_calculate_surrogate_loss_with_L2P(
+                    X_chunk, queries_chunk
+                )
             )
             masked_logits = self._mask_logits_with_class_mask(logits, class_mask)
 
@@ -188,7 +186,7 @@ class SingleTaskTrainer:
             chunk_weight = X_chunk.shape[0] / total_samples
             self._backpropagation(loss_result=chunk_loss * chunk_weight)
 
-            total_loss_value += chunk_loss.item() * chunk_weight
+            total_loss_value += (chunk_loss * chunk_weight).detach()
 
         self._clip_gradients()
         self._update_parameters_using_optimizer(optimizer)

@@ -109,12 +109,6 @@ class ContinualLearningPipeline:
     def _train_on_current_task_and_update_rehearsal(
         self, current_task_index: int
     ) -> None:
-        """
-        Trains on current task and updates rehearsal buffer if it is being used.
-
-        Args:
-            current_task_index (int): _description_
-        """
         current_task = self.data_package.get_task(current_task_index)
         num_classes = self.data_package.get_number_of_classes()
 
@@ -149,7 +143,7 @@ class ContinualLearningPipeline:
             )
 
     def _get_all_tasks_up_to_index(self, current_task_index: int) -> list[Task]:
-        seen_tasks = self.data_package.tasks[: current_task_index + 1]
+        seen_tasks = self.data_package.get_tasks()[: current_task_index + 1]
 
         return seen_tasks
 

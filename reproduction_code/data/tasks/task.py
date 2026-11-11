@@ -2,7 +2,7 @@ from typing import Any, ClassVar
 
 import numpy as np
 import torch
-from datasets import Dataset, DatasetDict
+from datasets import DatasetDict
 from PIL.Image import Image
 from torch import Tensor
 from torchvision.transforms import Compose, InterpolationMode, Resize, ToTensor
@@ -39,49 +39,34 @@ class Task:
         self._assert_required_columns_exist(data)
 
         self.class_ids = class_ids
-        self.data = data
         self.random_seed = random_seed
-
         self.transform = self._create_data_point_transform_pipeline()
+        self.data = data
+
+        self.queries_by_split: dict[str, Tensor] = {}
+
+    def set_queries(self, split: str, queries: Tensor) -> None:
+        assert queries.shape[0] == len(self.data[split])
+        self.queries_by_split[split] = queries
 
     def get_class_ids(self) -> list[int]:
         return self.class_ids
 
     def get_train_batches(self, batch_size: int) -> BatchIterator:
-        """
-        Returns the "train" split of the dataset in the form of a BatchIterator after applying the lazy transformer (see detailed info at _apply_lazy_transformation and _apply_transform_to_batch)
-
-        Args:
-            batch_size (int): Batch size.
-
-        Returns:
-            BatchIterator: Returned batches.
-        """
-        raw_train_dataset = self.data["train"]
-
-        dataset_with_transformer = self._apply_lazy_transformation(raw_train_dataset)
-
-        return self._build_batch_iterator(dataset_with_transformer, batch_size, True)
+        return self.get_batches("train", batch_size, shuffle=True)
 
     def get_test_batches(self, batch_size: int) -> BatchIterator:
-        """
-        Returns the "test" split of the dataset in the form of a BatchIterator after applying the lazy transformer (see detailed info at _apply_lazy_transformer and _apply_transform_to_batch)
+        return self.get_batches("test", batch_size, shuffle=False)
 
-        Args:
-            batch_size (int): Batch size.
+    def get_batches(self, split: str, batch_size: int, shuffle: bool) -> BatchIterator:
+        dataset = self.data[split].with_transform(self._apply_transform_to_batch)
+        adapter = TorchDatasetAdapter(dataset, self.queries_by_split.get(split))
 
-        Returns:
-            BatchIterator: Returned batches.
-        """
-        raw_test_dataset = self.data["test"]
-
-        dataset_with_transformer = self._apply_lazy_transformation(raw_test_dataset)
-
-        return self._build_batch_iterator(dataset_with_transformer, batch_size, False)
+        return BatchIterator(adapter, batch_size, shuffle, self.random_seed)
 
     def get_n_samples_per_class(self, samples_per_class: int) -> Batch:
         """
-        Yields a fixed number of samples per class from the data and packages them into a batch before returning (preprocessing included).
+        Yields a fixed number of samples per class from the data and packages them into a batch before returning.
 
         Args:
             samples_per_class (int): Number of samples per class.
@@ -95,26 +80,14 @@ class Task:
         selected_indices = self._sample_indices_of_every_class(
             labels, samples_per_class
         )
-        raw_samples: dict[str, list[Any]] = train_dataset.select(selected_indices)[:]
+        raw_samples = train_dataset.select(selected_indices)[:]
+        transformed_samples = self._apply_transform_to_batch(raw_samples)
+        queries = self.queries_by_split["train"][selected_indices]
 
-        return self._build_batch(raw_samples)
-
-    def _build_batch(self, raw_samples: dict[str, list[Any]]) -> Batch:
-        transformed = self._apply_transform_to_batch(raw_samples)
-
-        X = torch.stack(transformed["X"])
-        Y = torch.tensor(transformed["Y"], dtype=torch.long)
-
-        return Batch(X, Y)
-
-    def _build_batch_iterator(
-        self, formatted_dataset: Dataset, batch_size: int, shuffle: bool
-    ) -> BatchIterator:
-        return BatchIterator(
-            dataset=TorchDatasetAdapter(formatted_dataset),
-            batch_size=batch_size,
-            shuffle=shuffle,
-            random_seed=self.random_seed,
+        return Batch(
+            X=torch.stack(transformed_samples["X"]),
+            Y=torch.tensor(transformed_samples["Y"], dtype=torch.long),
+            queries=queries,
         )
 
     def _sample_indices_of_every_class(
@@ -148,18 +121,6 @@ class Task:
         return rng.choice(
             indices_of_matching_instances, size=samples_per_class, replace=False
         ).tolist()
-
-    def _apply_lazy_transformation(self, dataset: Dataset) -> Dataset:
-        """
-        Applies a lazy transformation to the dataset. "Lazy" means the transformation does not immediately apply to the entire dataset, but only when the DataLoader fetches the needed data.
-
-        Args:
-            dataset (Dataset): Dataset.
-
-        Returns:
-            Dataset: Dataset after applying lazy transformation.
-        """
-        return dataset.with_transform(self._apply_transform_to_batch)
 
     def _apply_transform_to_batch(
         self, raw_batch: dict[str, list[Any]]
@@ -213,8 +174,7 @@ class Task:
 
     def _create_data_point_transform_pipeline(self) -> Compose:
         """
-        Lazy tranformation pipeline, including: converting channels to RGB, resizing image to the correct size (224 x 224), converting image to a Pytorch tensor while also changing layout from HWC to CHW.
-        This function is run inside __init__ to create the pipeline function.
+        Lazy transformation pipeline, including: converting channels to RGB, resizing image to the correct size (224 x 224), converting image to a Pytorch tensor while also changing layout from HWC to CHW.
 
         Returns:
             Compose: Returned pipeline.
