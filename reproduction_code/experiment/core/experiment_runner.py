@@ -87,7 +87,6 @@ class ExperimentRunner:
             "grad_clip_max_norm": self.grad_clip_max_norm,
             "rehearsal_samples_per_class": self.rehearsal_samples_per_class,
             "shared_test_set": self.shared_test_set,
-            "wandb_log_details": self.wandb_log_details,
         }
 
         self.pipeline = self._initialize()
