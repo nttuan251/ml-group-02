@@ -21,7 +21,6 @@ from reproduction_code.model.train.continual_learning_pipeline import (
 from reproduction_code.model.train.metrics_tracker import MetricsTracker
 from reproduction_code.model.train.optimizer_factory import (
     OptimizerFactory,
-    OptimizerType,
 )
 from reproduction_code.model.train.query_precomputer import QueryPrecomputer
 from reproduction_code.model.train.rehearsal_buffer import RehearsalBuffer
@@ -48,7 +47,6 @@ class ExperimentRunner:
         batch_size: int,
         epochs_per_task: int,
         learning_rate: float,
-        momentum: float | None,
         lambda_surrogate: float,
         grad_clip_max_norm: float,
         rehearsal_samples_per_class: int,
@@ -64,7 +62,6 @@ class ExperimentRunner:
         self.batch_size = batch_size
         self.epochs_per_task = epochs_per_task
         self.learning_rate = learning_rate
-        self.momentum = momentum
         self.lambda_surrogate = lambda_surrogate
         self.grad_clip_max_norm = grad_clip_max_norm
         self.rehearsal_samples_per_class = rehearsal_samples_per_class
@@ -82,7 +79,6 @@ class ExperimentRunner:
             "batch_size": self.batch_size,
             "epochs_per_task": self.epochs_per_task,
             "learning_rate": self.learning_rate,
-            "momentum": self.momentum,
             "lambda_surrogate": self.lambda_surrogate,
             "grad_clip_max_norm": self.grad_clip_max_norm,
             "rehearsal_samples_per_class": self.rehearsal_samples_per_class,
@@ -178,22 +174,13 @@ class ExperimentRunner:
             prompt_length=self.prompt_length,
             top_n=self.top_n_prompts,
             use_frequency_penalty=self.use_frequency_penalty,
-            frozen_model=self.rehearsal_samples_per_class == 0,
         ).to(self.device)
 
         return L2P_model
 
     def _initialize_optimizer_factory(self) -> OptimizerFactory:
-        if self.rehearsal_samples_per_class > 0:
-            optimizer_type = OptimizerType.SGD
-            assert self.momentum is not None
-        else:
-            optimizer_type = OptimizerType.ADAM
-
         optimizer_factory = OptimizerFactory(
             learning_rate=self.learning_rate,
-            optimizer_type=optimizer_type,
-            momentum=self.momentum,
         )
 
         return optimizer_factory

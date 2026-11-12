@@ -52,41 +52,37 @@ class SingleTaskTrainer:
         # Optimizer created anew, internal states are reset every task.
         optimizer = self.optimizer_factory.create_optimizer(self.model)
 
-        seen_class_ids = self._build_seen_class_ids(task)
-        class_mask = self._build_class_mask(list(seen_class_ids), total_num_classes)
+        current_task_class_mask = self._build_class_mask(
+            task.get_class_ids(), total_num_classes
+        )
+        rehearsal_class_mask = self._build_rehearsal_class_mask(total_num_classes)
 
         batch_iterator = task.get_train_batches(self.batch_size)
 
         epoch_losses = self._train_on_all_epochs_and_record_losses(
-            batch_iterator, class_mask, optimizer
+            batch_iterator,
+            current_task_class_mask,
+            rehearsal_class_mask,
+            optimizer,
         )
 
         return epoch_losses
 
-    def _build_seen_class_ids(self, task: Task) -> list[int]:
-        current_task_class_ids = task.get_class_ids()
-
-        if self.rehearsal_buffer:
-            rehearsal_buffer_class_ids: set[int] = (
-                self.rehearsal_buffer.get_recorded_classes()
-            )
-        else:
-            rehearsal_buffer_class_ids: set[int] = set()
-
-        seen_class_ids = rehearsal_buffer_class_ids.union(set(current_task_class_ids))
-
-        return list(seen_class_ids)
-
     def _train_on_all_epochs_and_record_losses(
-        self, batch_iterator: BatchIterator, class_mask: Tensor, optimizer: Optimizer
+        self,
+        batch_iterator: BatchIterator,
+        current_task_class_mask: Tensor,
+        rehearsal_class_mask: Tensor | None,
+        optimizer: Optimizer,
     ) -> list[float]:
         """
         Trains the model in multiple epochs and records all the epoch losses.
 
         Args:
             batch_iterator (BatchIterator): Iterator for all the batches in one task.
-            class_mask (Tensor): Current task's class labels mask.
-            optimizer (Optimizer): Optimizer (Adam or SGD).
+            current_task_class_mask (Tensor): Current task's class labels mask.
+            rehearsal_class_mask (Tensor | None): Rehearsal buffer class labels mask.
+            optimizer (Optimizer): Optimizer (Adam).
 
         Returns:
             list[float]: Epoch losses.
@@ -97,22 +93,30 @@ class SingleTaskTrainer:
             print(f"** EPOCH {epoch_index} **")
 
             epoch_loss = self._train_on_epoch_and_calculate_average_loss(
-                batch_iterator, class_mask, optimizer
+                batch_iterator,
+                current_task_class_mask,
+                rehearsal_class_mask,
+                optimizer,
             )
             epoch_losses.append(epoch_loss)
 
         return epoch_losses
 
     def _train_on_epoch_and_calculate_average_loss(
-        self, batch_iterator: BatchIterator, class_mask: Tensor, optimizer: Optimizer
+        self,
+        batch_iterator: BatchIterator,
+        current_task_class_mask: Tensor,
+        rehearsal_class_mask: Tensor | None,
+        optimizer: Optimizer,
     ) -> float:
         """
         Trains the model on every batch in one task in one epoch. Then calculates average loss.
 
         Args:
             batch_iterator (BatchIterator): Iterator for all the batches in one task.
-            class_mask (Tensor): Current task's class labels mask.
-            optimizer (Optimizer): Optimizer (Adam or SGD).
+            current_task_class_mask (Tensor): Current task's class labels mask.
+            rehearsal_class_mask (Tensor | None): Rehearsal buffer class labels mask.
+            optimizer (Optimizer): Optimizer (Adam).
 
         Returns:
             float: Average epoch loss.
@@ -120,7 +124,12 @@ class SingleTaskTrainer:
         total_epoch_loss = torch.zeros((), device=self.device)
 
         for batch_index, batch in enumerate(batch_iterator):
-            batch_loss = self._train_on_batch(batch, class_mask, optimizer)
+            batch_loss = self._train_on_batch(
+                batch,
+                current_task_class_mask,
+                rehearsal_class_mask,
+                optimizer,
+            )
             total_epoch_loss += batch_loss
 
             if batch_index % 10 == 0 or batch_index == len(batch_iterator) - 1:
@@ -133,23 +142,26 @@ class SingleTaskTrainer:
         return average_epoch_loss
 
     def _train_on_batch(
-        self, batch: Batch, class_mask: Tensor, optimizer: Optimizer
+        self,
+        batch: Batch,
+        current_task_class_mask: Tensor,
+        rehearsal_class_mask: Tensor | None,
+        optimizer: Optimizer,
     ) -> Tensor:
         """
         Trains data on a batch in the following steps:
         - Moves data to desired device, clear gradients.
+        - If rehearsal is used and not empty, samples a batch with the same batch size from it. The current batch and the rehearsal batch are kept as two separate chunks.
         - Forwards the data through the complete L2P model, receiving classification logits and surrogate loss.
-        - Masks the logits with the current task's class labels mask.
-        - Calculates cross entropy loss from logits and batch labels.
-        - Calculates total loss, then performs backpropagation and updates parameters.
-
-        If rehearsal buffer is used and buffer is not empty, an extra batch of past data is appended to the current batch.
-        The final batch is always divided into batch-sized chunks to process at a time for fear of OOM issues when rehearsal buffer is used, in which case the batch size increases twofold.
+        - Masks each chunk's logits with its own class mask.
+        - Calculates cross entropy loss from logits and chunk labels.
+        - Calculates total loss and scales it by the chunk's portion of total samples, then performs backpropagation, clips gradients and updates parameters.
 
         Args:
             batch (Batch): Batch.
-            class_mask (Tensor): Current task's class labels mask.
-            optimizer (Optimizer): Optimizer (Adam or SGD).
+            current_task_class_mask (Tensor): Current task's class labels mask.
+            rehearsal_class_mask (Tensor | None): Rehearsal buffer class labels mask.
+            optimizer (Optimizer): Optimizer (Adam).
 
         Returns:
             Tensor: Total loss value.
@@ -157,22 +169,24 @@ class SingleTaskTrainer:
         batch.to(self.device)
         self._clear_optimizer_gradients(optimizer)
 
-        if self.rehearsal_buffer and not self.rehearsal_buffer.is_empty():
+        chunks_of_batch_and_mask = [(batch, current_task_class_mask)]
+
+        if rehearsal_class_mask is not None:
+            assert self.rehearsal_buffer is not None
             rehearsal_batch = self.rehearsal_buffer.get_random_samples(
                 self.batch_size
             ).to(self.device)
-            batch = batch.merge(rehearsal_batch)
+            chunks_of_batch_and_mask.append((rehearsal_batch, rehearsal_class_mask))
 
-        X = batch.get_X()
-        Y = batch.get_Y()
-        queries = batch.get_queries()
-        total_samples = batch.get_batch_size()
+        total_samples = sum(
+            chunk_batch.get_batch_size() for chunk_batch, _ in chunks_of_batch_and_mask
+        )
 
         total_loss_value = torch.zeros((), device=self.device)
-        for start_index in range(0, total_samples, self.batch_size):
-            X_chunk = X[start_index : start_index + self.batch_size]
-            Y_chunk = Y[start_index : start_index + self.batch_size]
-            queries_chunk = queries[start_index : start_index + self.batch_size]
+        for chunk_batch, chunk_class_mask in chunks_of_batch_and_mask:
+            X_chunk = chunk_batch.get_X()
+            Y_chunk = chunk_batch.get_Y()
+            queries_chunk = chunk_batch.get_queries()
 
             with torch.autocast("cuda", dtype=torch.float16):
                 logits, surrogate_loss = (
@@ -181,7 +195,7 @@ class SingleTaskTrainer:
                     )
                 )
             masked_logits = self._mask_logits_with_class_mask(
-                logits.float(), class_mask
+                logits.float(), chunk_class_mask
             )
 
             cross_entropy_loss = nn.functional.cross_entropy(masked_logits, Y_chunk)
@@ -209,6 +223,17 @@ class SingleTaskTrainer:
         torch.nn.utils.clip_grad_norm_(
             trainable_parameters, max_norm=self.grad_clip_max_norm
         )
+
+    def _build_rehearsal_class_mask(self, total_num_classes: int) -> Tensor | None:
+        if self.rehearsal_buffer and not self.rehearsal_buffer.is_empty():
+            rehearsal_class_ids = self.rehearsal_buffer.get_recorded_classes()
+            rehearsal_class_mask = self._build_class_mask(
+                list(rehearsal_class_ids), total_num_classes
+            )
+        else:
+            rehearsal_class_mask = None
+
+        return rehearsal_class_mask
 
     def _build_class_mask(self, class_ids: list[int], total_num_classes: int) -> Tensor:
         mask = torch.zeros(total_num_classes, dtype=torch.bool, device=self.device)
