@@ -79,7 +79,7 @@ class ContinualLearningPipeline:
         print("Prompt usage: ")
         for prompt_index, usage_count in enumerate(prompt_usage_counts):
             print(f"Prompt {prompt_index}: {usage_count}")
-            log_data[f"prompt_{prompt_index}_usage"] = usage_count
+            log_data[f"prompt_usage/prompt_{prompt_index}"] = usage_count
 
         wandb.log(log_data)
 
