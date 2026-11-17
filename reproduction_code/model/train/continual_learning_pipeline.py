@@ -38,7 +38,7 @@ class ContinualLearningPipeline:
         - Evaluates current model on all tasks seen including the current one.
         - Records accuracies obtained in the previous step.
         - If prompt frequency penalty is used, updates prompt frequency table.
-        - Logs all the accuracies and forgetting values evaluated on all tasks so far using W&B.
+        - Logs all the accuracies and forgetting values evaluated on all tasks so far using W&B. Also logs the prompt usage.
 
         At the end, logs the final model's average accuracy on all tasks, as well as average forgetting value across all tasks.
         """
@@ -49,6 +49,8 @@ class ContinualLearningPipeline:
 
             print("=== TRAINING ===")
             self._train_on_current_task_and_update_rehearsal(current_task_index)
+
+            self._log_prompt_usage(current_task_index)
 
             print("=== EVALUATING ===")
             accuracies_of_all_tasks_up_to_current = (
@@ -67,6 +69,19 @@ class ContinualLearningPipeline:
                 accuracies_of_all_tasks_up_to_current,
                 is_final_task=current_task_index == num_tasks - 1,
             )
+
+    def _log_prompt_usage(self, current_task_index: int) -> None:
+        prompt_usage_counts: list[int] = (
+            self.model.prompt_pool.get_and_reset_task_prompt_usage().cpu().tolist()
+        )
+        log_data: dict[str, int] = {"current_task_index": current_task_index}
+
+        print("Prompt usage: ")
+        for prompt_index, usage_count in enumerate(prompt_usage_counts):
+            print(f"Prompt {prompt_index}: {usage_count}")
+            log_data[f"prompt_{prompt_index}_usage"] = usage_count
+
+        wandb.log(log_data)
 
     def _log_accuracies_and_forgetting(
         self,

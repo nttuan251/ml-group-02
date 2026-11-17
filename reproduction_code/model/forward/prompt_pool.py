@@ -9,6 +9,7 @@ class PromptPool(nn.Module):
 
     prompt_frequencies_batch: Tensor
     prompt_normalized_frequencies_task: Tensor
+    prompt_usage_by_task: Tensor
 
     def __init__(
         self,
@@ -43,6 +44,9 @@ class PromptPool(nn.Module):
             self.register_buffer(
                 "prompt_normalized_frequencies_task", torch.zeros(pool_size)
             )
+        self.register_buffer(
+            "prompt_usage_by_task", torch.zeros(pool_size, dtype=torch.long)
+        )
 
     def select_prompts_and_calculate_loss_from_queries(
         self, queries: Tensor
@@ -66,6 +70,9 @@ class PromptPool(nn.Module):
                 selected_prompt_indices = self._get_top_n_prompt_indices(
                     similarity_matrix
                 )
+
+                if self.training:
+                    self._update_usage_after_batch(selected_prompt_indices)
 
                 if self.training and self.use_frequency_penalty:
                     self._update_frequency_after_batch(selected_prompt_indices)
@@ -92,6 +99,24 @@ class PromptPool(nn.Module):
             normalized_frequencies = self.prompt_frequencies_batch / total_prompt_counts
             self.prompt_normalized_frequencies_task = normalized_frequencies
             self.has_frequency_history = True
+
+    def get_and_reset_task_prompt_usage(self) -> Tensor:
+        """
+        Gets the prompt usage counts for each prompt and resets the usage counts. This function is meant to be called at the end of each task.
+
+        Returns:
+            Tensor: Prompt usage counts for each prompt.
+        """
+        usage = self.prompt_usage_by_task.clone()
+        self.prompt_usage_by_task.zero_()
+
+        return usage
+
+    def _update_usage_after_batch(self, selected_indices: Tensor) -> None:
+        batch_prompt_usage = torch.bincount(
+            selected_indices.flatten(), minlength=self.pool_size
+        )
+        self.prompt_usage_by_task += batch_prompt_usage
 
     def _calculate_cosine_similarity(self, queries: Tensor, keys: Tensor) -> Tensor:
         """
