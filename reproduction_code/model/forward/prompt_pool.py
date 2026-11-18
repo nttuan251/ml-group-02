@@ -47,6 +47,7 @@ class PromptPool(nn.Module):
         self.register_buffer(
             "prompt_usage_by_task", torch.zeros(pool_size, dtype=torch.long)
         )
+        self.is_recording_usage = False
 
     def select_prompts_and_calculate_loss_from_queries(
         self, queries: Tensor
@@ -71,7 +72,7 @@ class PromptPool(nn.Module):
                     similarity_matrix
                 )
 
-                if self.training:
+                if self.is_recording_usage:
                     self._update_usage_after_batch(selected_prompt_indices)
 
                 if self.training and self.use_frequency_penalty:
@@ -100,9 +101,12 @@ class PromptPool(nn.Module):
             self.prompt_normalized_frequencies_task = normalized_frequencies
             self.has_frequency_history = True
 
+    def set_usage_recording(self, enabled: bool) -> None:
+        self.is_recording_usage = enabled
+
     def get_and_reset_task_prompt_usage(self) -> Tensor:
         """
-        Gets the prompt usage counts for each prompt and resets the usage counts. This function is meant to be called at the end of each task.
+        Gets the prompt usage counts for each prompt and resets the usage counts. This function is meant to be called at the end of each task evaluation after the model has finished training.
 
         Returns:
             Tensor: Prompt usage counts for each prompt.

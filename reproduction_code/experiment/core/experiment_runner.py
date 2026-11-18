@@ -109,9 +109,10 @@ class ExperimentRunner:
         wandb.init(**self.wandb_log_details)
 
         wandb.define_metric("current_task_index")
+        wandb.define_metric("prompt_usage_task_index")
         wandb.define_metric("accuracy/*", step_metric="current_task_index")
         wandb.define_metric("forgetting/*", step_metric="current_task_index")
-        wandb.define_metric("prompt_usage/*", step_metric="current_task_index")
+        wandb.define_metric("prompt_usage/*", step_metric="prompt_usage_task_index")
 
         set_global_seed(random_seed=self.random_seed)
 

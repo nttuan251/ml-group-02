@@ -22,23 +22,35 @@ class ContinualLearningEvaluator:
         self.batch_size = batch_size
         self.device = device
         self.shared_test_set = shared_test_set
+        self.prompt_usage_by_task: dict[int, Tensor] = {}
 
-    def calculate_accuracies_on_each_task(self, tasks: list[Task]) -> dict[int, float]:
+    def calculate_accuracies_on_each_task(
+        self, tasks: list[Task], record_prompt_usage: bool
+    ) -> dict[int, float]:
         """
         Calculates and records average accuracies evaluated on each input tasks with the current model.
 
         Args:
             tasks (list[Task]): Input tasks.
+            record_prompt_usage (bool): Whether to record prompt usage.
 
         Returns:
             dict[int, float]: Recorded average accuracies.
         """
         self.model.eval()
+        prompt_pool = self.model.prompt_pool
+        prompt_pool.set_usage_recording(record_prompt_usage)
+        self.prompt_usage_by_task = {}
 
         if self.shared_test_set:
             task_accuracy = self._calculate_average_accuracy_on_task(tasks[0])
             task_accuracies = {
                 task_index: task_accuracy for task_index in range(len(tasks))
+            }
+
+            shared_test_prompt_usage = prompt_pool.get_and_reset_task_prompt_usage()
+            self.prompt_usage_by_task = {
+                task_index: shared_test_prompt_usage for task_index in range(len(tasks))
             }
 
         else:
@@ -48,10 +60,18 @@ class ContinualLearningEvaluator:
                     current_task
                 )
                 task_accuracies[current_task_index] = current_task_accuracy
+                self.prompt_usage_by_task[current_task_index] = (
+                    prompt_pool.get_and_reset_task_prompt_usage()
+                )
 
                 print(f"Accuracy on task {current_task_index}: {current_task_accuracy}")
 
+        prompt_pool.set_usage_recording(False)
+
         return task_accuracies
+
+    def get_prompt_usage_by_task(self) -> dict[int, Tensor]:
+        return self.prompt_usage_by_task
 
     def _calculate_average_accuracy_on_task(self, task: Task) -> float:
         """
