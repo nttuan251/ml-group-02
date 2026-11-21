@@ -71,14 +71,14 @@ Nhóm cài đặt L2P từ mô tả trong bài báo. Code chính thức ([google
 
 Các thành phần được tái sử dụng:
 
-| Thành phần | Dùng ở đâu | Nguồn |
-|---|---|---|
+| Thành phần                                                                      | Dùng ở đâu                         | Nguồn    |
+| ------------------------------------------------------------------------------- | ---------------------------------- | -------- |
 | ViT-B/16 và trọng số pre-train ImageNet-21k (`vit_base_patch16_224.orig_in21k`) | Backbone đóng băng, kiêm hàm query | [1], [2] |
-| Tensor, autograd, `Adam`, AMP (`autocast`, `GradScaler`) | Huấn luyện | [3], [4] |
-| Phép biến đổi ảnh `Resize`, `ToTensor` | Tiền xử lý | [3] |
-| Hugging Face `datasets` | Tải và lọc dữ liệu | [5] |
-| Weights & Biases | Theo dõi thực nghiệm | [6] |
-| CIFAR-100, CORe50 | Dữ liệu đánh giá | [7], [8] |
+| Tensor, autograd, `Adam`, AMP (`autocast`, `GradScaler`)                        | Huấn luyện                         | [3], [4] |
+| Phép biến đổi ảnh `Resize`, `ToTensor`                                          | Tiền xử lý                         | [3]      |
+| Hugging Face `datasets`                                                         | Tải và lọc dữ liệu                 | [5]      |
+| Weights & Biases                                                                | Theo dõi thực nghiệm               | [6]      |
+| CIFAR-100, CORe50                                                               | Dữ liệu đánh giá                   | [7], [8] |
 
 **Tài liệu tham khảo**
 
@@ -93,25 +93,36 @@ Các thành phần được tái sử dụng:
 
 ## 5. Thông tin về datasets
 
+Tất cả các datasets đều được lấy từ Hugging Face Datasets với các địa chỉ sau:
+
+- **CIFAR-100:** `uoft-cs/cifar100`.
+- **5-datasets:**
+  - **CIFAR-10:** `uoft-cs/cifar10`.
+  - **MNIST:** `ylecun/mnist`.
+  - **Fashion-MNIST:** `zalando-datasets/fashion_mnist`.
+  - **SVHN:** `ufldl-stanford/svhn` (`cropped_digits`).
+  - **notMNIST:** `anubhavmaity/notMNIST`.
+- **CORe50:** Các datasets có sẵn từ Hugging Face Datasets không có feature về `session`, vì thế nên dataset CORe50 được tải từ nguồn bên ngoài (kích thước chuẩn 128 x 128) và upload lên Hugging Face với địa chỉ `nhuy165/core50-sessions`.
+
 ## 6. Random seeds
 
 Giá trị seed được lưu ở trường `random_seed` trong cấu hình của mỗi run và được W&B ghi lại:
 
-| Nhóm thực nghiệm | Seed |
-|---|---|
-| Hai thí nghiệm chính (Split CIFAR-100 và CORe50) | **42, 24, 12** (3 lần chạy, báo cáo trung bình ± độ lệch chuẩn như paper) |
-| Phân tích mở rộng (sweep M, sweep Lp × N, tần suất chọn prompt) | **42** (1 lần chạy) |
+| Nhóm thực nghiệm                                                | Seed                                                                      |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Hai thí nghiệm chính (Split CIFAR-100 và CORe50)                | **42, 24, 12** (3 lần chạy, báo cáo trung bình ± độ lệch chuẩn như paper) |
+| Phân tích mở rộng (sweep M, sweep Lp × N, tần suất chọn prompt) | **42** (1 lần chạy)                                                       |
 
 Seed được áp dụng ở các điểm sau:
 
-| Vị trí | Cách áp dụng |
-|---|---|
-| Toàn cục | `set_global_seed(42)` đặt seed cho `random`, `numpy`, `torch` và `torch.cuda` |
-| Thứ tự lớp của Split CIFAR-100 | `random.Random(seed)` xáo trộn 100 nhãn trước khi chia thành 10 task |
-| Thứ tự batch khi huấn luyện | `torch.Generator().manual_seed(seed)` truyền vào `DataLoader` |
+| Vị trí                            | Cách áp dụng                                                                                  |
+| --------------------------------- | --------------------------------------------------------------------------------------------- |
+| Toàn cục                          | `set_global_seed(42)` đặt seed cho `random`, `numpy`, `torch` và `torch.cuda`                 |
+| Thứ tự lớp của Split CIFAR-100    | `random.Random(seed)` xáo trộn 100 nhãn trước khi chia thành 10 task                          |
+| Thứ tự batch khi huấn luyện       | `torch.Generator().manual_seed(seed)` truyền vào `DataLoader`                                 |
 | Chọn mẫu đưa vào rehearsal buffer | `numpy.random.default_rng(seed)` (chọn mẫu theo lớp) và `torch.Generator` (lấy mẫu từ buffer) |
-| Gaussian-scheduled CIFAR-100 | `random.Random(seed)` lấy mẫu thời điểm xuất hiện của từng ảnh |
-| Khởi tạo prompt, key, classifier | Dùng seed toàn cục ở trên |
+| Gaussian-scheduled CIFAR-100      | `random.Random(seed)` lấy mẫu thời điểm xuất hiện của từng ảnh                                |
+| Khởi tạo prompt, key, classifier  | Dùng seed toàn cục ở trên                                                                     |
 
 Lưu ý: nhóm không bật chế độ deterministic của cuDNN và có dùng mixed precision (fp16), nên chạy lại cùng seed trên GPU khác có thể lệch nhẹ về kết quả.
 
@@ -135,13 +146,13 @@ Các thí nghiệm không thực hiện: 5-datasets, Gaussian-scheduled CIFAR-10
 
 Tất cả run nằm trong W&B project [`L2P_PROJECT`](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT). Mọi thí nghiệm được tạo từ notebook `reproduction_code/notebook/l2p-reproduction.ipynb`, thay đổi cấu hình bằng hàm `get_*_config` (hoặc thay các trường như `rehearsal_samples_per_class`, `prompt_pool_size`, `prompt_length`, `top_n_prompts`). Mỗi liên kết ở cột "W&B" là một report tổng hợp các run của thí nghiệm đó (thí nghiệm chính gồm 3 run ứng với 3 seed).
 
-| Thí nghiệm | Cấu hình | W&B | Kết quả cho thấy |
-|---|---|---|---|
-| Split CIFAR-100, L2P (không buffer) | `get_CIFAR100_config`, `rehearsal_samples_per_class=0` | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Class-incremental-learning-Split-CIFAR-100--VmlldzoxODMzNDg3NA) | Average Acc và Forgetting của L2P so với paper (slide 26–27) |
-| Split CIFAR-100, L2P-R (buffer 10/lớp) | `get_CIFAR100_config`, `rehearsal_samples_per_class=10` | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Class-incremental-learning-Split-CIFAR-100--VmlldzoxODMzNDg3NA) | Như trên, khi có buffer nhỏ |
-| Split CIFAR-100, L2P-R (buffer 50/lớp) | `get_CIFAR100_config`, `rehearsal_samples_per_class=50` | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Class-incremental-learning-Split-CIFAR-100--VmlldzoxODMzNDg3NA) | Như trên, khi có buffer lớn |
-| CORe50, L2P (không buffer) | `get_CORe50_config`, `rehearsal_samples_per_class=0` | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Domain-incremental-learning-CORe50--VmlldzoxODMzNTgxNA) | Test accuracy domain-incremental so với paper (slide 28) |
-| CORe50, L2P-R (buffer 50/lớp) | `get_CORe50_config`, `rehearsal_samples_per_class=50` (thực tế 48/lớp, 6/lớp/task) | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Domain-incremental-learning-CORe50--VmlldzoxODMzNTgxNA) | Như trên, khi có buffer |
-| Sweep kích thước pool M (10, 15, 20, 25, 30) | Split CIFAR-100, Lp=5, N=5, không buffer | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Prompt-Pool-Size-Sensitivity-Split-CIFAR-100--VmlldzoxODMzNTk3NQ) | Accuracy ổn định theo M (slide 32) |
-| Sweep độ dài prompt Lp × số prompt chọn N | Split CIFAR-100, M=20, tag `HYPERPARAM_SWEEP`, tên run dạng `sweep_M20_Lp{Lp}_N{N}` | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Hyperparameter-HeatmapSplit-CIFAR-100--VmlldzoxODMzNTg5OQ) | Ảnh hưởng của Lp và N (slide 35) |
-| Phân tích tần suất chọn prompt theo task và theo M | Dựng từ các run sweep M ở trên (`prompt_usage/*`) | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Prompt-Pool-Size-Sensitivity-Split-CIFAR-100--VmlldzoxODMzNTk3NQ) | Mức chia sẻ prompt giữa các task (slide 33–34) |
+| Thí nghiệm                                         | Cấu hình                                                                            | W&B                                                                                                                                          | Kết quả cho thấy                                             |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Split CIFAR-100, L2P (không buffer)                | `get_CIFAR100_config`, `rehearsal_samples_per_class=0`                              | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Class-incremental-learning-Split-CIFAR-100--VmlldzoxODMzNDg3NA)   | Average Acc và Forgetting của L2P so với paper (slide 26–27) |
+| Split CIFAR-100, L2P-R (buffer 10/lớp)             | `get_CIFAR100_config`, `rehearsal_samples_per_class=10`                             | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Class-incremental-learning-Split-CIFAR-100--VmlldzoxODMzNDg3NA)   | Như trên, khi có buffer nhỏ                                  |
+| Split CIFAR-100, L2P-R (buffer 50/lớp)             | `get_CIFAR100_config`, `rehearsal_samples_per_class=50`                             | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Class-incremental-learning-Split-CIFAR-100--VmlldzoxODMzNDg3NA)   | Như trên, khi có buffer lớn                                  |
+| CORe50, L2P (không buffer)                         | `get_CORe50_config`, `rehearsal_samples_per_class=0`                                | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Domain-incremental-learning-CORe50--VmlldzoxODMzNTgxNA)           | Test accuracy domain-incremental so với paper (slide 28)     |
+| CORe50, L2P-R (buffer 50/lớp)                      | `get_CORe50_config`, `rehearsal_samples_per_class=50` (thực tế 48/lớp, 6/lớp/task)  | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Domain-incremental-learning-CORe50--VmlldzoxODMzNTgxNA)           | Như trên, khi có buffer                                      |
+| Sweep kích thước pool M (10, 15, 20, 25, 30)       | Split CIFAR-100, Lp=5, N=5, không buffer                                            | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Prompt-Pool-Size-Sensitivity-Split-CIFAR-100--VmlldzoxODMzNTk3NQ) | Accuracy ổn định theo M (slide 32)                           |
+| Sweep độ dài prompt Lp × số prompt chọn N          | Split CIFAR-100, M=20, tag `HYPERPARAM_SWEEP`, tên run dạng `sweep_M20_Lp{Lp}_N{N}` | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Hyperparameter-HeatmapSplit-CIFAR-100--VmlldzoxODMzNTg5OQ)        | Ảnh hưởng của Lp và N (slide 35)                             |
+| Phân tích tần suất chọn prompt theo task và theo M | Dựng từ các run sweep M ở trên (`prompt_usage/*`)                                   | [Report](https://forge.coreweave.com/wandb/nhuy165-org/L2P_PROJECT/reports/Prompt-Pool-Size-Sensitivity-Split-CIFAR-100--VmlldzoxODMzNTk3NQ) | Mức chia sẻ prompt giữa các task (slide 33–34)               |
